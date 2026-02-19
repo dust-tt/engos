@@ -333,3 +333,149 @@ export function computeCompensation(
 
   return { periods: output };
 }
+
+/** Compute full months between two dates (e.g. Jan 15 → Mar 15 = 2 months). */
+function fullMonthsBetween(start: Date, end: Date): number {
+  const years = end.getFullYear() - start.getFullYear();
+  const months = end.getMonth() - start.getMonth();
+  let total = years * 12 + months;
+  if (end.getDate() < start.getDate()) {
+    total -= 1;
+  }
+  return Math.max(0, total);
+}
+
+export interface ProjectionYear {
+  year: number;
+  preferred_price_cents: number;
+  yearly_base_cents: number;
+  yearly_bonus_cash_cents: number;
+  options_vested: number;
+  value_cents: number;
+}
+
+function formatDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Project forward equity ownership through 2030, simulating fundraise events.
+ * The preferred price increases by `preferredMultiplier` every `fundraisePeriodMonths`.
+ * Bonus-to-equity conversion at each period uses the projected preferred price at that time.
+ */
+export function projectEquity(
+  company: CompanyData,
+  engineer: EngineerData,
+  bonusEquityRatio: number,
+  preferredMultiplier: number = 3,
+  fundraisePeriodMonths: number = 18
+): ProjectionYear[] {
+  // Find most recent fundraise
+  const sorted = [...company.options_price].sort(
+    (a, b) =>
+      parseDate(a.start_date).getTime() - parseDate(b.start_date).getTime()
+  );
+  const lastFundraise = sorted[sorted.length - 1];
+  let lastDate = parseDate(lastFundraise.start_date);
+  let lastPreferred = lastFundraise.preferred_price_cents;
+  let lastStrike = lastFundraise.strike_price_cents;
+
+  // Generate projected fundraise events
+  const projectedPrices = [...company.options_price];
+  const endDate = parseDate("2031-01-01");
+
+  while (true) {
+    const nextDate = new Date(lastDate);
+    nextDate.setMonth(nextDate.getMonth() + fundraisePeriodMonths);
+    if (nextDate >= endDate) break;
+
+    lastPreferred = Math.round(lastPreferred * preferredMultiplier);
+    lastStrike = Math.round(lastStrike * preferredMultiplier);
+
+    projectedPrices.push({
+      start_date: formatDateStr(nextDate),
+      strike_price_cents: lastStrike,
+      preferred_price_cents: lastPreferred,
+    });
+
+    lastDate = nextDate;
+  }
+
+  const projectedCompany: CompanyData = { options_price: projectedPrices };
+
+  // Override bonus splits
+  const modifiedEngineer: EngineerData = {
+    ...engineer,
+    period_bonus_splits: [
+      {
+        start_date: "2020-01-01",
+        bonus_equity_ratio: bonusEquityRatio,
+      },
+    ],
+  };
+
+  // Run compensation with projected company data
+  const targetPeriod = "2030-09-01";
+  const result = computeCompensation(
+    projectedCompany,
+    modifiedEngineer,
+    targetPeriod
+  );
+
+  const years = [2026, 2027, 2028, 2029, 2030];
+  const projections: ProjectionYear[] = [];
+
+  for (const year of years) {
+    const yearEnd = new Date(year, 11, 31); // Dec 31
+    const yearEndStr = `${year}-12-31`;
+    let totalOptions = 0;
+
+    // 4yr grant vesting
+    for (const grant of engineer["4_year_grants"]) {
+      const grantStart = parseDate(grant.start_date);
+      const months = fullMonthsBetween(grantStart, yearEnd);
+      const vestedMonths = Math.min(months, 48);
+      totalOptions += (grant.options_count / 48) * vestedMonths;
+    }
+
+    // New grants from periods (vest over 6 months)
+    for (const period of result.periods) {
+      if (period.new_grant && period.new_grant.options_count > 0) {
+        const grantStart = parseDate(period.start_date);
+        const months = fullMonthsBetween(grantStart, yearEnd);
+        const vestedMonths = Math.min(months, 6);
+        totalOptions += (period.new_grant.options_count / 6) * vestedMonths;
+      }
+    }
+
+    totalOptions = Math.ceil(totalOptions);
+    const preferredAtYearEnd = getPreferredPriceAtDate(
+      projectedCompany,
+      yearEndStr
+    );
+
+    // Find the last period in this year for base/bonus values
+    let yearlyBase = 0;
+    let yearlyBonusCash = 0;
+    for (const period of result.periods) {
+      if (period.start_date.startsWith(String(year))) {
+        yearlyBase = period.yearly.base_cash_cents;
+        yearlyBonusCash = period.yearly.bonus_cash_cents;
+      }
+    }
+
+    projections.push({
+      year,
+      preferred_price_cents: preferredAtYearEnd,
+      yearly_base_cents: yearlyBase,
+      yearly_bonus_cash_cents: yearlyBonusCash,
+      options_vested: totalOptions,
+      value_cents: totalOptions * preferredAtYearEnd,
+    });
+  }
+
+  return projections;
+}

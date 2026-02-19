@@ -2,13 +2,26 @@
 
 All monetary amounts are in EUR cents.
 
+### Usage
+
+```bash
+# Period compensation (default command)
+npx tsx src/cli.ts {handle}
+npx tsx src/cli.ts period {handle} -p 2026-09-01
+
+# Equity projection through 2030
+npx tsx src/cli.ts jazz {handle} {ratio}
+npx tsx src/cli.ts jazz {handle} {ratio} -m 2 -f 12
+```
+
 ### Inputs company
 
-Stored in company.json:
-
+Stored in code:
 ```
 ENGOS_START_DATE="2025-09-01"
 ```
+
+Stored in company.json:
 
 ```
 {
@@ -165,3 +178,35 @@ Stored per engineer under engineers/{handle}.json:
   and `prorate` components.
 - `total_cash_cents = base_cash + bonus_cash + bonus_equity_cash + 4yr_grant_equity_cash`.
 - All values are rounded up (ceil).
+
+### Equity projection (`jazz`)
+
+The `jazz` command projects forward equity ownership through 2030 by simulating fundraise events.
+
+**Parameters**
+
+- `handle` — engineer handle
+- `ratio` — bonus equity ratio (0-1) applied to all periods in the simulation
+- `-m, --multiplier <number>` — preferred price multiplier at each fundraise (default: 3)
+- `-f, --fundraise-period <months>` — months between fundraise events (default: 18)
+
+**Fundraise simulation**
+
+- Starting from the most recent `options_price` entry, projected fundraise events are generated
+  every `fundraise-period` months through 2030.
+- At each fundraise, the preferred price is multiplied by `multiplier`.
+- Bonus-to-equity conversion at each period uses the projected preferred price at that time,
+  so later periods yield fewer options (at a higher price per option).
+
+**Output**
+
+A table with years 2026–2030 as rows and columns:
+
+- **Pref. Price** — projected preferred price at year-end
+- **Yearly Base** — annualized base salary at the last period of the year
+- **Yearly Bonus** — annualized cash bonus at the last period of the year
+- **Options** — cumulative vested options at year-end (from 4yr grants + period grants)
+- **Options Value** — total vested options valued at the projected preferred price at year-end
+
+Option vesting follows the same rules as in `period`: 4yr grants vest over 48 months, period
+grants vest over 6 months from the period start date.

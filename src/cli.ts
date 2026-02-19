@@ -2,7 +2,11 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { program } from "commander";
 import { CompanyData, EngineerData, PeriodBreakdown } from "./types.js";
-import { computeCompensation } from "./compute.js";
+import {
+  computeCompensation,
+  getPreferredPriceAtDate,
+  projectEquity,
+} from "./compute.js";
 
 function formatCents(cents: number): string {
   const euros = Math.ceil(cents / 100);
@@ -11,6 +15,16 @@ function formatCents(cents: number): string {
     currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
+  });
+}
+
+function formatPrice(cents: number): string {
+  const euros = cents / 100;
+  return euros.toLocaleString("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 }
 
@@ -57,9 +71,40 @@ function getNextPeriodStart(): string {
   return `${year + 1}-03-01`;
 }
 
+function loadData(handle: string): {
+  company: CompanyData;
+  engineer: EngineerData;
+} {
+  const companyPath = resolve("company.json");
+  const engineerPath = resolve("engineers", `${handle}.json`);
+
+  let company: CompanyData;
+  let engineer: EngineerData;
+
+  try {
+    company = JSON.parse(readFileSync(companyPath, "utf-8"));
+  } catch {
+    console.error(`Error: could not read ${companyPath}`);
+    process.exit(1);
+  }
+
+  try {
+    engineer = JSON.parse(readFileSync(engineerPath, "utf-8"));
+  } catch {
+    console.error(`Error: could not read ${engineerPath}`);
+    process.exit(1);
+  }
+
+  return { company, engineer };
+}
+
 program
   .name("engos")
-  .description("Compute EngOS engineer compensation")
+  .description("EngOS engineer compensation");
+
+program
+  .command("period", { isDefault: true })
+  .description("Compute engineer compensation for a period")
   .argument("<handle>", "Engineer handle (e.g. pierre)")
   .option(
     "-p, --period <date>",
@@ -67,27 +112,7 @@ program
   )
   .action((handle: string, opts: { period?: string }) => {
     const targetPeriod = opts.period || getNextPeriodStart();
-
-    const companyPath = resolve("company.json");
-    const engineerPath = resolve("engineers", `${handle}.json`);
-
-    let company: CompanyData;
-    let engineer: EngineerData;
-
-    try {
-      company = JSON.parse(readFileSync(companyPath, "utf-8"));
-    } catch {
-      console.error(`Error: could not read ${companyPath}`);
-      process.exit(1);
-    }
-
-    try {
-      engineer = JSON.parse(readFileSync(engineerPath, "utf-8"));
-    } catch {
-      console.error(`Error: could not read ${engineerPath}`);
-      process.exit(1);
-    }
-
+    const { company, engineer } = loadData(handle);
     const result = computeCompensation(company, engineer, targetPeriod);
 
     console.log(`\n=== Engineer: ${handle} ===`);
@@ -129,5 +154,81 @@ program
       console.log();
     }
   });
+
+program
+  .command("jazz")
+  .description("Project equity ownership forward through 2030")
+  .argument("<handle>", "Engineer handle")
+  .argument("<ratio>", "Bonus equity ratio (0-1)")
+  .option(
+    "-m, --multiplier <number>",
+    "Preferred price multiplier at each fundraise",
+    "3"
+  )
+  .option(
+    "-f, --fundraise-period <months>",
+    "Months between fundraise events",
+    "18"
+  )
+  .action(
+    (
+      handle: string,
+      ratioStr: string,
+      opts: { multiplier: string; fundraisePeriod: string }
+    ) => {
+      const ratio = parseFloat(ratioStr);
+      if (isNaN(ratio) || ratio < 0 || ratio > 1) {
+        console.error("Error: ratio must be a number between 0 and 1");
+        process.exit(1);
+      }
+
+      const multiplier = parseFloat(opts.multiplier);
+      const fundraisePeriod = parseInt(opts.fundraisePeriod, 10);
+
+      const { company, engineer } = loadData(handle);
+      const currentPreferred = getPreferredPriceAtDate(company, "2030-09-01");
+      const projections = projectEquity(
+        company,
+        engineer,
+        ratio,
+        multiplier,
+        fundraisePeriod
+      );
+
+      console.log(`\n=== Equity Projection: ${handle} ===`);
+      console.log(`Bonus equity ratio: ${(ratio * 100).toFixed(0)}%`);
+      console.log(`Current preferred price: ${formatPrice(currentPreferred)}/option`);
+      console.log(
+        `Fundraise: x${multiplier} every ${fundraisePeriod} months\n`
+      );
+
+      // Table
+      const header = [
+        "Year".padEnd(6),
+        "Pref. Price".padStart(12),
+        "Yearly Base".padStart(14),
+        "Yearly Bonus".padStart(14),
+        "Options".padStart(12),
+        "Options Value".padStart(16),
+      ].join(" | ");
+      const separator = header.replace(/[^|]/g, "-");
+
+      console.log(header);
+      console.log(separator);
+
+      for (const p of projections) {
+        const row = [
+          String(p.year).padEnd(6),
+          formatPrice(p.preferred_price_cents).padStart(12),
+          formatCents(p.yearly_base_cents).padStart(14),
+          formatCents(p.yearly_bonus_cash_cents).padStart(14),
+          formatOptions(p.options_vested).padStart(12),
+          formatCents(p.value_cents).padStart(16),
+        ].join(" | ");
+        console.log(row);
+      }
+      console.log();
+    }
+  );
 
 program.parse();
