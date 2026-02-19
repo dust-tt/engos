@@ -207,7 +207,8 @@ program
         "Year".padEnd(6),
         "Pref. Price".padStart(12),
         "Yearly Base".padStart(14),
-        "Yearly Bonus".padStart(14),
+        "Cash Bonus".padStart(14),
+        "Cash Total".padStart(14),
         "Options".padStart(12),
         "Options Value".padStart(16),
       ].join(" | ");
@@ -222,6 +223,7 @@ program
           formatPrice(p.preferred_price_cents).padStart(12),
           formatCents(p.yearly_base_cents).padStart(14),
           formatCents(p.yearly_bonus_cash_cents).padStart(14),
+          formatCents(p.yearly_cash_total_cents).padStart(14),
           formatOptions(p.options_vested).padStart(12),
           formatCents(p.value_cents).padStart(16),
         ].join(" | ");

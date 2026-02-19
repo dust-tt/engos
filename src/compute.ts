@@ -350,6 +350,7 @@ export interface ProjectionYear {
   preferred_price_cents: number;
   yearly_base_cents: number;
   yearly_bonus_cash_cents: number;
+  yearly_cash_total_cents: number;
   options_vested: number;
   value_cents: number;
 }
@@ -460,10 +461,12 @@ export function projectEquity(
     // Find the last period in this year for base/bonus values
     let yearlyBase = 0;
     let yearlyBonusCash = 0;
+    let yearlyCashTotal = 0;
     for (const period of result.periods) {
       if (period.start_date.startsWith(String(year))) {
         yearlyBase = period.yearly.base_cash_cents;
         yearlyBonusCash = period.yearly.bonus_cash_cents;
+        yearlyCashTotal = period.yearly.total_cash_cents;
       }
     }
 
@@ -472,6 +475,7 @@ export function projectEquity(
       preferred_price_cents: preferredAtYearEnd,
       yearly_base_cents: yearlyBase,
       yearly_bonus_cash_cents: yearlyBonusCash,
+      yearly_cash_total_cents: yearlyCashTotal,
       options_vested: totalOptions,
       value_cents: totalOptions * preferredAtYearEnd,
     });

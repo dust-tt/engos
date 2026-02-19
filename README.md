@@ -204,7 +204,8 @@ A table with years 2026–2030 as rows and columns:
 
 - **Pref. Price** — projected preferred price at year-end
 - **Yearly Base** — annualized base salary at the last period of the year
-- **Yearly Bonus** — annualized cash bonus at the last period of the year
+- **Cash Bonus** — annualized cash bonus at the last period of the year
+- **Cash Total** — annualized total cash (base + cash bonus + equity cash equivalent) at the last period of the year
 - **Options** — cumulative vested options at year-end (from 4yr grants + period grants)
 - **Options Value** — total vested options valued at the projected preferred price at year-end
 
