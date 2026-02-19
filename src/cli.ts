@@ -1,9 +1,10 @@
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { resolve } from "path";
 import { program } from "commander";
 import { CompanyData, EngineerData, PeriodBreakdown } from "./types.js";
 import {
   computeCompensation,
+  computeModel,
   getPreferredPriceAtDate,
   projectEquity,
 } from "./compute.js";
@@ -232,5 +233,62 @@ program
       console.log();
     }
   );
+
+program
+  .command("model")
+  .description("Aggregate compensation model across all engineers for the next 12 months")
+  .action(() => {
+    const companyPath = resolve("company.json");
+    const engineersDir = resolve("engineers");
+
+    let company: CompanyData;
+    try {
+      company = JSON.parse(readFileSync(companyPath, "utf-8"));
+    } catch {
+      console.error(`Error: could not read ${companyPath}`);
+      process.exit(1);
+    }
+
+    // Load all engineers except test.json
+    const files = readdirSync(engineersDir).filter(
+      (f) => f.endsWith(".json") && f !== "test.json"
+    );
+    const engineers: EngineerData[] = files.map((f) =>
+      JSON.parse(readFileSync(resolve(engineersDir, f), "utf-8"))
+    );
+
+    const months = computeModel(company, engineers);
+
+    console.log(`\n=== Compensation Model (${files.length} engineers) ===\n`);
+
+    const header = [
+      "Month".padEnd(10),
+      "Base Salary".padStart(14),
+      "Cash Bonus".padStart(14),
+      "Equity Grant".padStart(24),
+    ].join(" | ");
+    const separator = header.replace(/[^|]/g, "-");
+
+    console.log(header);
+    console.log(separator);
+
+    for (const m of months) {
+      const bonusStr = m.is_period_start
+        ? formatCents(m.bonus_cash_cents).padStart(14)
+        : "—".padStart(14);
+      const equityStr = m.is_period_start
+        ? `${formatOptions(m.equity_options_count)} opts (${formatCents(m.equity_value_cents)})`.padStart(24)
+        : "—".padStart(24);
+
+      const row = [
+        m.month.padEnd(10),
+        formatCents(m.base_salary_cents).padStart(14),
+        bonusStr,
+        equityStr,
+      ].join(" | ");
+      console.log(row);
+    }
+    console.log();
+  });
 
 program.parse();

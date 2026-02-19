@@ -482,3 +482,108 @@ export function projectEquity(
 
   return projections;
 }
+
+export interface ModelMonth {
+  month: string;
+  base_salary_cents: number;
+  is_period_start: boolean;
+  bonus_cash_cents: number;
+  equity_options_count: number;
+  equity_value_cents: number;
+}
+
+/**
+ * Aggregate compensation model across all engineers for the next 12 months.
+ * Shows monthly base salary and bonus/equity payments on period starts.
+ */
+export function computeModel(
+  company: CompanyData,
+  engineers: EngineerData[]
+): ModelMonth[] {
+  const now = new Date();
+  const startMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  // Build list of next 12 months
+  const months: { year: number; month: number }[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(startMonth);
+    d.setMonth(d.getMonth() + i);
+    months.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
+  }
+
+  // Compute target period: the period covering the last month
+  const last = months[months.length - 1];
+  let targetYear = last.year;
+  let targetMonth: string;
+  if (last.month >= 9) {
+    targetYear += 1;
+    targetMonth = "03";
+  } else if (last.month >= 3) {
+    targetMonth = "09";
+  } else {
+    targetMonth = "03";
+  }
+  const targetPeriodStart = `${targetYear}-${targetMonth}-01`;
+
+  // Compute each engineer (skip those that error)
+  const allResults: { result: EngineerOutput }[] = [];
+  for (const eng of engineers) {
+    try {
+      const result = computeCompensation(company, eng, targetPeriodStart);
+      allResults.push({ result });
+    } catch {
+      // Skip engineers that can't be computed (missing data, etc.)
+    }
+  }
+
+  const output: ModelMonth[] = [];
+
+  for (const { year, month } of months) {
+    const monthStr = `${year}-${String(month).padStart(2, "0")}`;
+
+    // Which period covers this month?
+    let periodStart: string;
+    if (month >= 3 && month <= 8) {
+      periodStart = `${year}-03-01`;
+    } else if (month >= 9) {
+      periodStart = `${year}-09-01`;
+    } else {
+      periodStart = `${year - 1}-09-01`;
+    }
+
+    const isPeriodStart = month === 3 || month === 9;
+
+    let totalBase = 0;
+    let totalBonusCash = 0;
+    let totalEquityOptions = 0;
+    let totalEquityValue = 0;
+
+    for (const { result } of allResults) {
+      const period = result.periods.find((p) => p.start_date === periodStart);
+      if (period) {
+        totalBase += period.monthly.base_cash_cents;
+
+        if (isPeriodStart) {
+          if (period.new_bonus) {
+            totalBonusCash += period.new_bonus.value_cents;
+          }
+          if (period.new_grant) {
+            totalEquityOptions += period.new_grant.options_count;
+            totalEquityValue += period.new_grant.value_cents;
+          }
+        }
+      }
+    }
+
+    output.push({
+      month: monthStr,
+      base_salary_cents: totalBase,
+      is_period_start: isPeriodStart,
+      bonus_cash_cents: totalBonusCash,
+      equity_options_count: totalEquityOptions,
+      equity_value_cents: totalEquityValue,
+    });
+  }
+
+  return output;
+}
