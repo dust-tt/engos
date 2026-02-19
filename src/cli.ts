@@ -5,10 +5,10 @@ import { CompanyData, EngineerData, PeriodBreakdown } from "./types.js";
 import { computeCompensation } from "./compute.js";
 
 function formatCents(cents: number): string {
-  const dollars = Math.ceil(cents / 100);
-  return dollars.toLocaleString("en-US", {
+  const euros = Math.ceil(cents / 100);
+  return euros.toLocaleString("fr-FR", {
     style: "currency",
-    currency: "USD",
+    currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
