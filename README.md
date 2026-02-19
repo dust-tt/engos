@@ -5,7 +5,7 @@
 Stored in company.json:
 
 ```
-ENGOS_START_DATE="2026-03-01"
+ENGOS_START_DATE="2025-09-01"
 ```
 
 ```
@@ -74,9 +74,18 @@ Stored per engineer under engineers/{handle}.json:
        4_year_grant_equity_cash_cents: number,
        total_cash_cents: number,
     }
+    new_bonus: {
+      regular_value_cents: number,
+      prorate_value_cents: number,
+      value_cents: number,
+    } | null,
     new_grant: {
+      regular_options_count: number,
+      regular_value_cents: number,
+      prorate_options_count: number,
+      prorate_value_cents: number,
       options_count: number,
-      value_cents: number
+      value_cents: number,
     } | null,
   }[]
 ```
