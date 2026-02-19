@@ -223,8 +223,6 @@ export function computeCompensation(
       }
     }
 
-    const totalPeriodBonus = regularBonus + proRateBonus;
-
     // --- 4-YEAR GRANTS ---
     let fourYearMonthlyOptions = 0;
     let fourYearMonthlyCash = 0;
@@ -270,13 +268,13 @@ export function computeCompensation(
 
     // --- Compute monthly values (regular only, steady-state) ---
     const monthly = {
-      base_cash_cents: Math.round(yearlyBase / 12),
-      bonus_total_cents: Math.round(regularBonus / 6),
-      bonus_cash_cents: Math.round(regularCashPeriod / 6),
-      bonus_equity_options_count: Math.round(regularEquityOptions / 6),
-      bonus_equity_cash_cents: Math.round(regularEquityPeriod / 6),
-      "4_year_grant_equity_options_count": Math.round(fourYearMonthlyOptions),
-      "4_year_grant_equity_cash_cents": Math.round(fourYearMonthlyCash),
+      base_cash_cents: Math.ceil(yearlyBase / 12),
+      bonus_total_cents: Math.ceil(regularBonus / 6),
+      bonus_cash_cents: Math.ceil(regularCashPeriod / 6),
+      bonus_equity_options_count: Math.ceil(regularEquityOptions / 6),
+      bonus_equity_cash_cents: Math.ceil(regularEquityPeriod / 6),
+      "4_year_grant_equity_options_count": Math.ceil(fourYearMonthlyOptions),
+      "4_year_grant_equity_cash_cents": Math.ceil(fourYearMonthlyCash),
       total_cash_cents: 0,
     };
     monthly.total_cash_cents =
@@ -301,26 +299,26 @@ export function computeCompensation(
 
     // --- New bonus (period cash bonus to pay) ---
     let newBonus: NewBonus | null = null;
-    const totalBonusCash = Math.round(totalCashPeriod);
+    const totalBonusCash = Math.ceil(totalCashPeriod);
     if (totalBonusCash > 0) {
       newBonus = {
-        regular_value_cents: Math.round(regularCashPeriod),
-        prorate_value_cents: Math.round(proRateCashPeriod),
+        regular_value_cents: Math.ceil(regularCashPeriod),
+        prorate_value_cents: Math.ceil(proRateCashPeriod),
         value_cents: totalBonusCash,
       };
     }
 
     // --- New grant ---
     let newGrant: NewGrant | null = null;
-    const totalEquityOptionsRounded = Math.round(totalEquityOptions);
+    const totalEquityOptionsRounded = Math.ceil(totalEquityOptions);
     if (totalEquityOptionsRounded > 0) {
       newGrant = {
-        regular_options_count: Math.round(regularEquityOptions),
-        regular_value_cents: Math.round(regularEquityPeriod),
-        prorate_options_count: Math.round(proRateEquityOptions),
-        prorate_value_cents: Math.round(proRateEquityPeriod),
+        regular_options_count: Math.ceil(regularEquityOptions),
+        regular_value_cents: Math.ceil(regularEquityPeriod),
+        prorate_options_count: Math.ceil(proRateEquityOptions),
+        prorate_value_cents: Math.ceil(proRateEquityPeriod),
         options_count: totalEquityOptionsRounded,
-        value_cents: Math.round(totalEquityPeriod),
+        value_cents: Math.ceil(totalEquityPeriod),
       };
     }
 
