@@ -461,14 +461,13 @@ export function projectEquity(
     // Find the last period in this year for base/bonus values
     let yearlyBase = 0;
     let yearlyBonusCash = 0;
-    let yearlyCashTotal = 0;
     for (const period of result.periods) {
       if (period.start_date.startsWith(String(year))) {
         yearlyBase = period.yearly.base_cash_cents;
         yearlyBonusCash = period.yearly.bonus_cash_cents;
-        yearlyCashTotal = period.yearly.total_cash_cents;
       }
     }
+    const yearlyCashTotal = yearlyBase + yearlyBonusCash;
 
     projections.push({
       year,
