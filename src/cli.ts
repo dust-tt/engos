@@ -164,7 +164,7 @@ program
   .option(
     "-m, --multiplier <number>",
     "Preferred price multiplier at each fundraise",
-    "3"
+    "2"
   )
   .option(
     "-f, --fundraise-period <months>",

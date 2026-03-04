@@ -11,7 +11,7 @@ npx tsx src/cli.ts period {handle} -p 2026-09-01
 
 # Equity projection through 2030
 npx tsx src/cli.ts jazz {handle} {ratio}
-npx tsx src/cli.ts jazz {handle} {ratio} -m 2 -f 12
+npx tsx src/cli.ts jazz {handle} {ratio} -m 3 -f 24
 ```
 
 ### Inputs company
@@ -19,6 +19,7 @@ npx tsx src/cli.ts jazz {handle} {ratio} -m 2 -f 12
 Stored in code:
 ```
 ENGOS_START_DATE="2025-09-01"
+BASE_SALARY_CAP_CENTS = 130_000_00;
 ```
 
 Stored in company.json:
@@ -133,12 +134,15 @@ Stored per engineer under engineers/{handle}.json:
   salary or a manual salary change). A new entry resets the accumulation.
 - If the base salary entry is at the period start, no raise is applied for that period. If it
   is strictly before the period, one raise is applied.
+- Base cash is capped at BASE_SALARY_CAP_CENTS EUR/year; any computed base above that cap is
+  redirected to bonus (while bonus still uses the computed uncapped base for its `1/3` component).
 
 **Bonus computation**
 
 - All employees must have a `period_bonus_splits` entry covering all 6-month periods (3/1 and
   9/1) after `max(ENGOS_START_DATE, engineer_date)`. If missing, error.
-- The regular bonus for a period is 1/3 of the 6-month base salary: `yearly_base / 2 / 3`.
+- The regular bonus for a period is `yearly_uncapped_base / 2 / 3`, plus redirected overflow:
+  `max(0, yearly_uncapped_base - BASE_SALARY_CAP_CENTS) / 2`.
 - `bonus_total_cents` in monthly/yearly reflects this regular bonus (before 4yr grant
   deduction and equity split).
 
@@ -156,9 +160,11 @@ Stored per engineer under engineers/{handle}.json:
 - Employees may have `4_year_grants`: each grant vests linearly over 48 months. Monthly vesting
   = `options_count / 48`. Cash equivalent = monthly vesting * current `preferred_price_cents`.
 - The 4yr grant cash equivalent is subtracted from the bonus independently for each portion:
-  - Regular: 6-month grant cash (`monthly_cash * 6`) subtracted from regular bonus
+  - Regular: 6-month grant cash (`monthly_cash * 6`) subtracted from regular 1/3 bonus
   - Prorate: proportional grant cash (`monthly_cash * 12 * days / 365`) subtracted from
-    prorate bonus
+    prorate 1/3 bonus
+- The base-cap overflow bonus component is preserved (not reduced by 4yr grant subtraction), so
+  capped base overflow always remains payable via the regular/prorate bonus paths.
 - If the 4yr grant cash exceeds the bonus portion, that portion's bonus is 0 (just report the
   4yr grant values).
 
@@ -187,7 +193,7 @@ The `jazz` command projects forward equity ownership through 2030 by simulating 
 
 - `handle` — engineer handle
 - `ratio` — bonus equity ratio (0-1) applied to all periods in the simulation
-- `-m, --multiplier <number>` — preferred price multiplier at each fundraise (default: 3)
+- `-m, --multiplier <number>` — preferred price multiplier at each fundraise (default: 2)
 - `-f, --fundraise-period <months>` — months between fundraise events (default: 18)
 
 **Fundraise simulation**

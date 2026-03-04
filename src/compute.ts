@@ -8,6 +8,7 @@ import {
 } from "./types.js";
 
 const ENGOS_START_DATE = "2025-09-01";
+const BASE_SALARY_CAP_CENTS = 130_000_00; // 130k EUR/year
 
 function parseDate(s: string): Date {
   return new Date(s + "T00:00:00");
@@ -180,14 +181,23 @@ export function computeCompensation(
       runningBase += getRaisePerPeriod(engineer, periodStart);
     }
 
-    const yearlyBase = runningBase;
+    const uncappedYearlyBase = runningBase;
+    const yearlyBaseOverflow = Math.max(
+      0,
+      uncappedYearlyBase - BASE_SALARY_CAP_CENTS
+    );
+    const yearlyBase = Math.min(uncappedYearlyBase, BASE_SALARY_CAP_CENTS);
 
     // --- Check if this period has bonus ---
     const hasBonusThisPeriod =
       bonusStartDate !== null && periodDate >= bonusStartDate;
 
     // --- BONUS ---
+    let regularBonusCore = 0;
+    let regularBonusOverflow = 0;
     let regularBonus = 0;
+    let proRateBonusCore = 0;
+    let proRateBonusOverflow = 0;
     let proRateBonus = 0;
     let proRateDays = 0;
     let bonusEquityRatio = 0;
@@ -205,8 +215,12 @@ export function computeCompensation(
       }
       bonusEquityRatio = bonusSplit.bonus_equity_ratio;
 
-      // Regular bonus for the period: 1/3 of 6-month base salary
-      regularBonus = yearlyBase / 2 / 3;
+      // Regular bonus for the period:
+      // 1) Standard bonus based on computed (uncapped) base
+      // 2) Plus overflow from capped base redirected to bonus
+      regularBonusCore = uncappedYearlyBase / 2 / 3;
+      regularBonusOverflow = yearlyBaseOverflow / 2;
+      regularBonus = regularBonusCore + regularBonusOverflow;
 
       // Pro-rated bonus for first bonus period after engineer_date
       if (!proRatedBonusApplied) {
@@ -216,8 +230,14 @@ export function computeCompensation(
           const prevBoundary = previousPeriodBoundary(periodStart);
           if (engineerDate >= prevBoundary && engineerDate < periodDate) {
             proRateDays = daysBetween(engineerDate, periodDate);
-            // Pro-rate using pre-increase base
-            proRateBonus = (baseBefore / 3) * (proRateDays / 365);
+            // Pro-rate using pre-increase base, plus redirected overflow
+            const baseBeforeOverflow = Math.max(
+              0,
+              baseBefore - BASE_SALARY_CAP_CENTS
+            );
+            proRateBonusCore = (baseBefore / 3) * (proRateDays / 365);
+            proRateBonusOverflow = baseBeforeOverflow * (proRateDays / 365);
+            proRateBonus = proRateBonusCore + proRateBonusOverflow;
           }
         }
       }
@@ -241,14 +261,23 @@ export function computeCompensation(
     }
 
     // --- Subtract 4yr grant cash from each bonus portion independently ---
-    // Regular: 4yr grant vesting over 6 months
+    // Note: overflow from the base cap is preserved and not offset by 4yr grants.
+    // Regular: 4yr grant vesting over 6 months (core bonus component only)
     const fourYearPeriodCash = fourYearMonthlyCash * 6;
-    const regularRemaining = Math.max(0, regularBonus - fourYearPeriodCash);
+    const regularCoreRemaining = Math.max(
+      0,
+      regularBonusCore - fourYearPeriodCash
+    );
+    const regularRemaining = regularCoreRemaining + regularBonusOverflow;
 
-    // Prorate: 4yr grant vesting over the prorate days
+    // Prorate: 4yr grant vesting over the prorate days (core bonus component only)
     const fourYearProRateCash =
       proRateDays > 0 ? (fourYearMonthlyCash * 12 * proRateDays) / 365 : 0;
-    const proRateRemaining = Math.max(0, proRateBonus - fourYearProRateCash);
+    const proRateCoreRemaining = Math.max(
+      0,
+      proRateBonusCore - fourYearProRateCash
+    );
+    const proRateRemaining = proRateCoreRemaining + proRateBonusOverflow;
 
     // --- Split remaining bonus between cash and equity ---
     const regularCashPeriod = regularRemaining * (1 - bonusEquityRatio);
