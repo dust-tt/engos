@@ -7,6 +7,7 @@ import {
   computeModel,
   getPreferredPriceAtDate,
   projectEquity,
+  RATIO_MINIMUM,
 } from "./compute.js";
 
 function formatCents(cents: number): string {
@@ -160,7 +161,7 @@ program
   .command("jazz")
   .description("Project equity ownership forward through 2030")
   .argument("<handle>", "Engineer handle")
-  .argument("<ratio>", "Bonus equity ratio (0-1)")
+  .argument("<ratio>", `Bonus equity ratio (${RATIO_MINIMUM}-1)`)
   .option(
     "-m, --multiplier <number>",
     "Preferred price multiplier at each fundraise",
@@ -178,8 +179,10 @@ program
       opts: { multiplier: string; fundraisePeriod: string }
     ) => {
       const ratio = parseFloat(ratioStr);
-      if (isNaN(ratio) || ratio < 0 || ratio > 1) {
-        console.error("Error: ratio must be a number between 0 and 1");
+      if (isNaN(ratio) || ratio < RATIO_MINIMUM || ratio > 1) {
+        console.error(
+          `Error: ratio must be a number between ${RATIO_MINIMUM} and 1`
+        );
         process.exit(1);
       }
 

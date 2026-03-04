@@ -20,6 +20,7 @@ Stored in code:
 ```
 ENGOS_START_DATE="2025-09-01"
 BASE_SALARY_CAP_CENTS = 130_000_00;
+RATIO_MINIMUM = 0.5;
 ```
 
 Stored in company.json:
@@ -61,6 +62,7 @@ Stored per engineer under engineers/{handle}.json:
   }[],
   // Bonus equity/cash split decision each period. Period is every 6 months 3/1 and 9/1.
   // Required for all periods after max(ENGOS_START_DATE, engineer_date).
+  // Must be in [RATIO_MINIMUM, 1], so cash is capped by (1 - RATIO_MINIMUM).
   period_bonus_splits: {
     start_date: Date,
     bonus_equity_ratio: number
@@ -173,6 +175,8 @@ Stored per engineer under engineers/{handle}.json:
 - After 4yr grant deduction, the remaining bonus is split per `bonus_equity_ratio`:
   - Cash portion: `remaining * (1 - bonus_equity_ratio)`
   - Equity portion: `remaining * bonus_equity_ratio`
+- `bonus_equity_ratio` is enforced in `[RATIO_MINIMUM, 1]`, so engineers cannot take more than
+  `(1 - RATIO_MINIMUM)` of bonus in cash.
 - The equity portion is converted to `options_count` using the current `preferred_price_cents`
   at the period start date. This is the total options to grant on a 6-month vesting schedule
   with no cliff.
@@ -192,7 +196,7 @@ The `jazz` command projects forward equity ownership through 2030 by simulating 
 **Parameters**
 
 - `handle` — engineer handle
-- `ratio` — bonus equity ratio (0-1) applied to all periods in the simulation
+- `ratio` — bonus equity ratio (`RATIO_MINIMUM`-1) applied to all periods in the simulation
 - `-m, --multiplier <number>` — preferred price multiplier at each fundraise (default: 2)
 - `-f, --fundraise-period <months>` — months between fundraise events (default: 18)
 

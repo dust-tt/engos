@@ -9,6 +9,15 @@ import {
 
 const ENGOS_START_DATE = "2025-09-01";
 const BASE_SALARY_CAP_CENTS = 130_000_00; // 130k EUR/year
+export const RATIO_MINIMUM = 0.5;
+
+function validateBonusEquityRatio(ratio: number, context: string): void {
+  if (!Number.isFinite(ratio) || ratio < RATIO_MINIMUM || ratio > 1) {
+    throw new Error(
+      `${context}: bonus_equity_ratio must be between ${RATIO_MINIMUM} and 1`
+    );
+  }
+}
 
 function parseDate(s: string): Date {
   return new Date(s + "T00:00:00");
@@ -214,6 +223,10 @@ export function computeCompensation(
         );
       }
       bonusEquityRatio = bonusSplit.bonus_equity_ratio;
+      validateBonusEquityRatio(
+        bonusEquityRatio,
+        `Invalid period_bonus_splits entry for period ${periodStart}`
+      );
 
       // Regular bonus for the period:
       // 1) Standard bonus based on computed (uncapped) base
@@ -403,6 +416,11 @@ export function projectEquity(
   preferredMultiplier: number = 3,
   fundraisePeriodMonths: number = 18
 ): ProjectionYear[] {
+  validateBonusEquityRatio(
+    bonusEquityRatio,
+    "Invalid jazz ratio parameter"
+  );
+
   // Find most recent fundraise
   const sorted = [...company.options_price].sort(
     (a, b) =>
