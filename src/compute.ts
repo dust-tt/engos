@@ -8,6 +8,7 @@ import {
 } from "./types.js";
 
 const ENGOS_START_DATE = "2025-09-01";
+const BASE_SALARY_CAP_CENTS = 130_000_00; // 130k EUR/year
 
 function parseDate(s: string): Date {
   return new Date(s + "T00:00:00");
@@ -180,7 +181,12 @@ export function computeCompensation(
       runningBase += getRaisePerPeriod(engineer, periodStart);
     }
 
-    const yearlyBase = runningBase;
+    const uncappedYearlyBase = runningBase;
+    const yearlyBaseOverflow = Math.max(
+      0,
+      uncappedYearlyBase - BASE_SALARY_CAP_CENTS
+    );
+    const yearlyBase = Math.min(uncappedYearlyBase, BASE_SALARY_CAP_CENTS);
 
     // --- Check if this period has bonus ---
     const hasBonusThisPeriod =
@@ -205,8 +211,10 @@ export function computeCompensation(
       }
       bonusEquityRatio = bonusSplit.bonus_equity_ratio;
 
-      // Regular bonus for the period: 1/3 of 6-month base salary
-      regularBonus = yearlyBase / 2 / 3;
+      // Regular bonus for the period:
+      // 1) Standard bonus based on computed (uncapped) base
+      // 2) Plus overflow from capped base redirected to bonus
+      regularBonus = uncappedYearlyBase / 2 / 3 + yearlyBaseOverflow / 2;
 
       // Pro-rated bonus for first bonus period after engineer_date
       if (!proRatedBonusApplied) {
@@ -216,8 +224,14 @@ export function computeCompensation(
           const prevBoundary = previousPeriodBoundary(periodStart);
           if (engineerDate >= prevBoundary && engineerDate < periodDate) {
             proRateDays = daysBetween(engineerDate, periodDate);
-            // Pro-rate using pre-increase base
-            proRateBonus = (baseBefore / 3) * (proRateDays / 365);
+            // Pro-rate using pre-increase base, plus redirected overflow
+            const baseBeforeOverflow = Math.max(
+              0,
+              baseBefore - BASE_SALARY_CAP_CENTS
+            );
+            proRateBonus =
+              (baseBefore / 3) * (proRateDays / 365) +
+              baseBeforeOverflow * (proRateDays / 365);
           }
         }
       }

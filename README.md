@@ -19,6 +19,7 @@ npx tsx src/cli.ts jazz {handle} {ratio} -m 2 -f 12
 Stored in code:
 ```
 ENGOS_START_DATE="2025-09-01"
+BASE_SALARY_CAP_CENTS = 130_000_00;
 ```
 
 Stored in company.json:
@@ -133,12 +134,15 @@ Stored per engineer under engineers/{handle}.json:
   salary or a manual salary change). A new entry resets the accumulation.
 - If the base salary entry is at the period start, no raise is applied for that period. If it
   is strictly before the period, one raise is applied.
+- Base cash is capped at BASE_SALARY_CAP_CENTS EUR/year; any computed base above that cap is
+  redirected to bonus (while bonus still uses the computed uncapped base for its `1/3` component).
 
 **Bonus computation**
 
 - All employees must have a `period_bonus_splits` entry covering all 6-month periods (3/1 and
   9/1) after `max(ENGOS_START_DATE, engineer_date)`. If missing, error.
-- The regular bonus for a period is 1/3 of the 6-month base salary: `yearly_base / 2 / 3`.
+- The regular bonus for a period is `yearly_uncapped_base / 2 / 3`, plus redirected overflow:
+  `max(0, yearly_uncapped_base - BASE_SALARY_CAP_CENTS) / 2`.
 - `bonus_total_cents` in monthly/yearly reflects this regular bonus (before 4yr grant
   deduction and equity split).
 
