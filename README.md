@@ -160,9 +160,11 @@ Stored per engineer under engineers/{handle}.json:
 - Employees may have `4_year_grants`: each grant vests linearly over 48 months. Monthly vesting
   = `options_count / 48`. Cash equivalent = monthly vesting * current `preferred_price_cents`.
 - The 4yr grant cash equivalent is subtracted from the bonus independently for each portion:
-  - Regular: 6-month grant cash (`monthly_cash * 6`) subtracted from regular bonus
+  - Regular: 6-month grant cash (`monthly_cash * 6`) subtracted from regular 1/3 bonus
   - Prorate: proportional grant cash (`monthly_cash * 12 * days / 365`) subtracted from
-    prorate bonus
+    prorate 1/3 bonus
+- The base-cap overflow bonus component is preserved (not reduced by 4yr grant subtraction), so
+  capped base overflow always remains payable via the regular/prorate bonus paths.
 - If the 4yr grant cash exceeds the bonus portion, that portion's bonus is 0 (just report the
   4yr grant values).
 
