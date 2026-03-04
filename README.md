@@ -11,7 +11,7 @@ npx tsx src/cli.ts period {handle} -p 2026-09-01
 
 # Equity projection through 2030
 npx tsx src/cli.ts jazz {handle} {ratio}
-npx tsx src/cli.ts jazz {handle} {ratio} -m 2 -f 12
+npx tsx src/cli.ts jazz {handle} {ratio} -m 3 -f 24
 ```
 
 ### Inputs company
@@ -193,7 +193,7 @@ The `jazz` command projects forward equity ownership through 2030 by simulating 
 
 - `handle` — engineer handle
 - `ratio` — bonus equity ratio (0-1) applied to all periods in the simulation
-- `-m, --multiplier <number>` — preferred price multiplier at each fundraise (default: 3)
+- `-m, --multiplier <number>` — preferred price multiplier at each fundraise (default: 2)
 - `-f, --fundraise-period <months>` — months between fundraise events (default: 18)
 
 **Fundraise simulation**
