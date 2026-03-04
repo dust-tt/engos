@@ -1,0 +1,19 @@
+{
+  "start_date": "2026-03-01",
+  "lead_date": null,
+  "tenure_date": null,
+  "engineer_date": "2026-07-01",
+  "4_year_grants": [],
+  "base_salaries": [
+    {
+      "start_date": "2026-03-01",
+      "yearly_cash_cents": 10000000
+    }
+  ],
+  "period_bonus_splits": [
+    {
+      "start_date": "2026-03-01",
+      "bonus_equity_ratio": 0.8
+    }
+  ]
+}
