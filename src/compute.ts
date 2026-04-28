@@ -7,7 +7,7 @@ import {
   NewGrant,
 } from "./types.js";
 
-const ENGOS_START_DATE = "2025-09-01";
+const ENGOS_START_DATE = "2025-05-01";
 const BASE_SALARY_CAP_CENTS = 130_000_00; // 130k EUR/year
 export const RATIO_MINIMUM = 0.5;
 
@@ -27,14 +27,14 @@ function daysBetween(a: Date, b: Date): number {
   return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-/** Generate all period start dates (3/1 and 9/1) from startDate through endDate inclusive. */
+/** Generate all period start dates (5/1 and 11/1) from startDate through endDate inclusive. */
 export function generatePeriods(startDate: string, endDate: string): string[] {
   const start = parseDate(startDate);
   const end = parseDate(endDate);
   const periods: string[] = [];
 
   for (let y = start.getFullYear(); y <= end.getFullYear() + 1; y++) {
-    for (const m of ["03", "09"]) {
+    for (const m of ["05", "11"]) {
       const d = `${y}-${m}-01`;
       const pd = parseDate(d);
       if (pd >= start && pd <= end) {
@@ -107,17 +107,17 @@ function findApplicableEntry<T extends { start_date: string }>(
   return result;
 }
 
-/** Get the period boundary (3/1 or 9/1) just before a given date. */
+/** Get the period boundary (5/1 or 11/1) just before a given date. */
 function previousPeriodBoundary(date: string): Date {
   const d = parseDate(date);
   const year = d.getFullYear();
 
-  const sep = parseDate(`${year}-09-01`);
-  const mar = parseDate(`${year}-03-01`);
+  const nov = parseDate(`${year}-11-01`);
+  const may = parseDate(`${year}-05-01`);
 
-  if (d > sep) return sep;
-  if (d > mar) return mar;
-  return parseDate(`${year - 1}-09-01`);
+  if (d > nov) return nov;
+  if (d > may) return may;
+  return parseDate(`${year - 1}-11-01`);
 }
 
 export function computeCompensation(
@@ -463,7 +463,7 @@ export function projectEquity(
   };
 
   // Run compensation with projected company data
-  const targetPeriod = "2030-09-01";
+  const targetPeriod = "2030-11-01";
   const result = computeCompensation(
     projectedCompany,
     modifiedEngineer,
@@ -559,13 +559,13 @@ export function computeModel(
   const last = months[months.length - 1];
   let targetYear = last.year;
   let targetMonth: string;
-  if (last.month >= 9) {
+  if (last.month >= 11) {
     targetYear += 1;
-    targetMonth = "03";
-  } else if (last.month >= 3) {
-    targetMonth = "09";
+    targetMonth = "05";
+  } else if (last.month >= 5) {
+    targetMonth = "11";
   } else {
-    targetMonth = "03";
+    targetMonth = "05";
   }
   const targetPeriodStart = `${targetYear}-${targetMonth}-01`;
 
@@ -587,15 +587,15 @@ export function computeModel(
 
     // Which period covers this month?
     let periodStart: string;
-    if (month >= 3 && month <= 8) {
-      periodStart = `${year}-03-01`;
-    } else if (month >= 9) {
-      periodStart = `${year}-09-01`;
+    if (month >= 5 && month <= 10) {
+      periodStart = `${year}-05-01`;
+    } else if (month >= 11) {
+      periodStart = `${year}-11-01`;
     } else {
-      periodStart = `${year - 1}-09-01`;
+      periodStart = `${year - 1}-11-01`;
     }
 
-    const isPeriodStart = month === 3 || month === 9;
+    const isPeriodStart = month === 5 || month === 11;
 
     let totalBase = 0;
     let totalBonusCash = 0;

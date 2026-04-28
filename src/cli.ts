@@ -50,15 +50,15 @@ function printBreakdown(label: string, b: PeriodBreakdown) {
   );
 }
 
-/** Compute the next period start (next 3/1 or 9/1 from today). */
+/** Compute the next period start (next 5/1 or 11/1 from today). */
 function getNextPeriodStart(): string {
   const now = new Date();
   const year = now.getFullYear();
 
   const candidates = [
-    new Date(year, 2, 1), // Mar 1
-    new Date(year, 8, 1), // Sep 1
-    new Date(year + 1, 2, 1), // Next Mar 1
+    new Date(year, 4, 1), // May 1
+    new Date(year, 10, 1), // Nov 1
+    new Date(year + 1, 4, 1), // Next May 1
   ];
 
   for (const c of candidates) {
@@ -70,7 +70,7 @@ function getNextPeriodStart(): string {
   }
 
   // Fallback
-  return `${year + 1}-03-01`;
+  return `${year + 1}-05-01`;
 }
 
 function loadData(handle: string): {
@@ -110,7 +110,7 @@ program
   .argument("<handle>", "Engineer handle (e.g. pierre)")
   .option(
     "-p, --period <date>",
-    "Target period start (YYYY-MM-DD), defaults to next 3/1 or 9/1"
+    "Target period start (YYYY-MM-DD), defaults to next 5/1 or 11/1"
   )
   .action((handle: string, opts: { period?: string }) => {
     const targetPeriod = opts.period || getNextPeriodStart();
@@ -190,7 +190,7 @@ program
       const fundraisePeriod = parseInt(opts.fundraisePeriod, 10);
 
       const { company, engineer } = loadData(handle);
-      const currentPreferred = getPreferredPriceAtDate(company, "2030-09-01");
+      const currentPreferred = getPreferredPriceAtDate(company, "2030-11-01");
       const projections = projectEquity(
         company,
         engineer,

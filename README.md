@@ -7,7 +7,7 @@ All monetary amounts are in EUR cents.
 ```bash
 # Period compensation (default command)
 npx tsx src/cli.ts {handle}
-npx tsx src/cli.ts period {handle} -p 2026-09-01
+npx tsx src/cli.ts period {handle} -p 2026-11-01
 
 # Equity projection through 2030
 npx tsx src/cli.ts jazz {handle} {ratio}
@@ -18,7 +18,7 @@ npx tsx src/cli.ts jazz {handle} {ratio} -m 3 -f 24
 
 Stored in code:
 ```
-ENGOS_START_DATE="2025-09-01"
+ENGOS_START_DATE="2026-05-01"
 BASE_SALARY_CAP_CENTS = 130_000_00;
 RATIO_MINIMUM = 0.5;
 ```
@@ -58,7 +58,7 @@ Stored per engineer under engineers/{handle}.json:
     start_date: Date,
     yearly_cash_cents: number
   }[],
-  // Bonus equity/cash split decision each period. Period is every 6 months 3/1 and 9/1.
+  // Bonus equity/cash split decision each period. Period is every 6 months 5/1 and 11/1.
   // Required for all periods after max(ENGOS_START_DATE, engineer_date).
   // Must be in [RATIO_MINIMUM, 1], so cash is capped by (1 - RATIO_MINIMUM).
   period_bonus_splits: {
@@ -118,7 +118,7 @@ Stored per engineer under engineers/{handle}.json:
 
 **Periods**
 
-- Each period is a 6-month period starting either 3/1 or 9/1 of each year.
+- Each period is a 6-month period starting either 5/1 or 11/1 of each year.
 - Periods are generated starting from `max(ENGOS_START_DATE, engineer.start_date)` through the
   target period.
 - All periods are recomputed on each run giving a clear view of the compensation monthly and
@@ -139,8 +139,8 @@ Stored per engineer under engineers/{handle}.json:
 
 **Bonus computation**
 
-- All employees must have a `period_bonus_splits` entry covering all 6-month periods (3/1 and
-  9/1) after `max(ENGOS_START_DATE, engineer_date)`. If missing, error.
+- All employees must have a `period_bonus_splits` entry covering all 6-month periods (5/1 and
+  11/1) after `max(ENGOS_START_DATE, engineer_date)`. If missing, error.
 - The regular bonus for a period is `yearly_uncapped_base / 2 / 3`, plus redirected overflow:
   `max(0, yearly_uncapped_base - BASE_SALARY_CAP_CENTS) / 2`.
 - `bonus_total_cents` in monthly/yearly reflects this regular bonus (before 4yr grant
