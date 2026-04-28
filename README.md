@@ -42,6 +42,8 @@ Stored per engineer under engineers/{handle}.json:
 ```
 {
   start_date: Date,
+  // Date at which employment ended. Null for active employees.
+  end_date: Date | null,
   // Date at which the employee trial period ended.
   engineer_date: Date | null,
   // Date at which the employee became tenured.
@@ -121,6 +123,8 @@ Stored per engineer under engineers/{handle}.json:
 - Each period is a 6-month period starting either 5/1 or 11/1 of each year.
 - Periods are generated starting from `max(ENGOS_START_DATE, engineer.start_date)` through the
   target period.
+- Requests for periods at or after `engineer.end_date` fail. The aggregate model excludes
+  terminated employees from months at or after their `end_date`.
 - All periods are recomputed on each run giving a clear view of the compensation monthly and
   annualized (simply 12x the monthly on the period).
 

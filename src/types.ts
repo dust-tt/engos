@@ -25,6 +25,7 @@ export interface PeriodBonusSplit {
 
 export interface EngineerData {
   start_date: string;
+  end_date: string | null;
   engineer_date: string | null;
   tenure_date: string | null;
   "4_year_grants": FourYearGrant[];
