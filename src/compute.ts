@@ -509,7 +509,7 @@ export function projectEquity(
       totalOptions += (grant.options_count / 48) * vestedMonths;
     }
 
-    // New grants from periods (vest over 6 months)
+    // New grants from periods (vest over 6 months). Recorded grants are no-op.
     for (const period of result.periods) {
       if (period.new_grant && period.new_grant.options_count > 0) {
         const grantStart = parseDate(period.start_date);

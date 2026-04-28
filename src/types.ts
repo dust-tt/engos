@@ -8,6 +8,14 @@ export interface CompanyData {
   options_price: OptionsPriceEntry[];
 }
 
+export interface GrantRecord {
+  start_date: string;
+  options_count: number;
+  type: "impact" | "bonus";
+  period: "4y" | "6m";
+  reason?: string;
+}
+
 export interface FourYearGrant {
   start_date: string;
   options_count: number;
@@ -29,7 +37,7 @@ export interface EngineerData {
   engineer_date: string | null;
   tenure_date: string | null;
   "4_year_grants": FourYearGrant[];
-  impact_recognitions: FourYearGrant[];
+  grants: GrantRecord[];
   base_salaries: BaseSalaryEntry[];
   period_bonus_splits: PeriodBonusSplit[];
 }

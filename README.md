@@ -54,10 +54,13 @@ Stored per engineer under engineers/{handle}.json:
     start_date: Date,
     options_count: number
   }[],
-  // Out-of-band exceptional impact grants. NO-OP for compensation calculation.
-  impact_recognitions: {
+  // Grant historical records (from bonus or impact recognition).
+  grants: {
     start_date: Date,
-    options_count: number
+    options_count: number,
+    type: "impact" | "bonus",
+    period: "4y" | "6m",
+    reason?: string
   }[],
   // Base salary entries. The most recent entry at or before a period start is used as the
   // baseline for that period.
@@ -168,9 +171,6 @@ Stored per engineer under engineers/{handle}.json:
 
 - Employees may have `4_year_grants`: each grant vests linearly over 48 months. Monthly vesting
   = `options_count / 48`. Cash equivalent = monthly vesting * current `preferred_price_cents`.
-- Employees may also have `impact_recognitions`: each entry records an exceptional impact grant
-  out of band. This is a NO-OP for compensation calculation: it does not affect bonus
-  computation, projections, or model output.
 - The 4yr grant cash equivalent is subtracted from the bonus independently for each portion:
   - Regular: 6-month grant cash (`monthly_cash * 6`) subtracted from regular 1/3 bonus
   - Prorate: proportional grant cash (`monthly_cash * 12 * days / 365`) subtracted from
@@ -179,6 +179,12 @@ Stored per engineer under engineers/{handle}.json:
   capped base overflow always remains payable via the regular/prorate bonus paths.
 - If the 4yr grant cash exceeds the bonus portion, that portion's bonus is 0 (just report the
   4yr grant values).
+
+**Grant records**
+
+- We record `grants` issued: each entry is a historical record of a grant from bonus or impact
+  recognition, with `type`, `period`, and an optional `reason`.
+- `grants` are a NO-OP for compensation calculation, pure historical recording.
 
 **Equity split**
 
