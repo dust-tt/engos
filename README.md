@@ -44,8 +44,6 @@ Stored per engineer under engineers/{handle}.json:
   start_date: Date,
   // Date at which the employee trial period ended.
   engineer_date: Date | null,
-  // Date at which the employee became lead.
-  lead_date: Date | null,
   // Date at which the employee became tenured.
   tenure_date: Date | null,
   // Only applicable to engineers that joined before the EngOS start date.
@@ -128,10 +126,10 @@ Stored per engineer under engineers/{handle}.json:
 
 **Base salary and raises**
 
-- At each period, the base salary is increased by 2.5k EUR on the yearly rate (5k annualized
+- At each period, the base salary is increased by 5k EUR on the yearly rate (10k annualized
   across 2 periods/year) if the employee is off trial (`engineer_date <= period.start_date`),
-  5k on the yearly rate (10k annualized) if lead (`lead_date <= period.start_date`), 7.5k on
-  the yearly rate (15k annualized) if tenured (`tenure_date <= period.start_date`).
+  or 7.5k on the yearly rate (15k annualized) if tenured
+  (`tenure_date <= period.start_date`).
 - Raises accumulate from the most recent `base_salaries` entry (which is either the initial
   salary or a manual salary change). A new entry resets the accumulation.
 - If the base salary entry is at the period start, no raise is applied for that period. If it

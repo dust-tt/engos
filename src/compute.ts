@@ -80,11 +80,8 @@ function getRaisePerPeriod(
   if (engineer.tenure_date && parseDate(engineer.tenure_date) <= pd) {
     return 750000; // 15k/year → 7.5k per period
   }
-  if (engineer.lead_date && parseDate(engineer.lead_date) <= pd) {
-    return 500000; // 10k/year → 5k per period
-  }
   if (engineer.engineer_date && parseDate(engineer.engineer_date) <= pd) {
-    return 250000; // 5k/year → 2.5k per period
+    return 500000; // 10k/year → 5k per period
   }
 
   return 0; // still on trial
