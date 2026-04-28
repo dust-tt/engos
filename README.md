@@ -54,6 +54,11 @@ Stored per engineer under engineers/{handle}.json:
     start_date: Date,
     options_count: number
   }[],
+  // Out-of-band exceptional impact grants. NO-OP for compensation calculation.
+  impact_recognitions: {
+    start_date: Date,
+    options_count: number
+  }[],
   // Base salary entries. The most recent entry at or before a period start is used as the
   // baseline for that period.
   base_salaries: {
@@ -163,6 +168,9 @@ Stored per engineer under engineers/{handle}.json:
 
 - Employees may have `4_year_grants`: each grant vests linearly over 48 months. Monthly vesting
   = `options_count / 48`. Cash equivalent = monthly vesting * current `preferred_price_cents`.
+- Employees may also have `impact_recognitions`: each entry records an exceptional impact grant
+  out of band. This is a NO-OP for compensation calculation: it does not affect bonus
+  computation, projections, or model output.
 - The 4yr grant cash equivalent is subtracted from the bonus independently for each portion:
   - Regular: 6-month grant cash (`monthly_cash * 6`) subtracted from regular 1/3 bonus
   - Prorate: proportional grant cash (`monthly_cash * 12 * days / 365`) subtracted from

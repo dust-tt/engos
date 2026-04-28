@@ -29,6 +29,7 @@ export interface EngineerData {
   engineer_date: string | null;
   tenure_date: string | null;
   "4_year_grants": FourYearGrant[];
+  impact_recognitions: FourYearGrant[];
   base_salaries: BaseSalaryEntry[];
   period_bonus_splits: PeriodBonusSplit[];
 }
