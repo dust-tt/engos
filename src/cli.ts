@@ -115,7 +115,14 @@ program
   .action((handle: string, opts: { period?: string }) => {
     const targetPeriod = opts.period || getNextPeriodStart();
     const { company, engineer } = loadData(handle);
-    const result = computeCompensation(company, engineer, targetPeriod);
+    let result: ReturnType<typeof computeCompensation>;
+    try {
+      result = computeCompensation(company, engineer, targetPeriod);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error(`Error: ${message}`);
+      process.exit(1);
+    }
 
     console.log(`\n=== Engineer: ${handle} ===`);
     console.log(`Target period: ${targetPeriod}\n`);
@@ -252,9 +259,9 @@ program
       process.exit(1);
     }
 
-    // Load all engineers except test.json
+    // Load all engineers except test fixtures
     const files = readdirSync(engineersDir).filter(
-      (f) => f.endsWith(".json") && f !== "test.json"
+      (f) => f.endsWith(".json") && !f.startsWith("test")
     );
     const engineers: EngineerData[] = files.map((f) =>
       JSON.parse(readFileSync(resolve(engineersDir, f), "utf-8"))
@@ -266,6 +273,7 @@ program
 
     const header = [
       "Month".padEnd(10),
+      "Engineers".padStart(9),
       "Base Salary".padStart(14),
       "Cash Bonus".padStart(14),
       "Equity Grant".padStart(24),
@@ -285,6 +293,7 @@ program
 
       const row = [
         m.month.padEnd(10),
+        String(m.engineers_count).padStart(9),
         formatCents(m.base_salary_cents).padStart(14),
         bonusStr,
         equityStr,

@@ -27,6 +27,13 @@ function daysBetween(a: Date, b: Date): number {
   return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+function formatDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /** Generate all period start dates (5/1 and 11/1) from startDate through endDate inclusive. */
 export function generatePeriods(startDate: string, endDate: string): string[] {
   const start = parseDate(startDate);
@@ -120,11 +127,34 @@ function previousPeriodBoundary(date: string): Date {
   return parseDate(`${year - 1}-11-01`);
 }
 
+function periodStartForMonth(year: number, month: number): string {
+  if (month >= 5 && month <= 10) {
+    return `${year}-05-01`;
+  }
+  if (month >= 11) {
+    return `${year}-11-01`;
+  }
+  return `${year - 1}-11-01`;
+}
+
+function isActiveAt(engineer: EngineerData, date: Date): boolean {
+  if (!engineer.end_date) {
+    return true;
+  }
+  return date < parseDate(engineer.end_date);
+}
+
 export function computeCompensation(
   company: CompanyData,
   engineer: EngineerData,
   targetPeriodStart: string
 ): EngineerOutput {
+  if (!isActiveAt(engineer, parseDate(targetPeriodStart))) {
+    throw new Error(
+      `Employee ended on ${engineer.end_date}; cannot compute period ${targetPeriodStart}`
+    );
+  }
+
   // Periods only start from ENGOS_START_DATE at the earliest
   const effectiveStart =
     engineer.start_date > ENGOS_START_DATE
@@ -394,13 +424,6 @@ export interface ProjectionYear {
   value_cents: number;
 }
 
-function formatDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 /**
  * Project forward equity ownership through 2030, simulating fundraise events.
  * The preferred price increases by `preferredMultiplier` every `fundraisePeriodMonths`.
@@ -529,6 +552,7 @@ export function projectEquity(
 
 export interface ModelMonth {
   month: string;
+  engineers_count: number;
   base_salary_cents: number;
   is_period_start: boolean;
   bonus_cash_cents: number;
@@ -570,11 +594,18 @@ export function computeModel(
   const targetPeriodStart = `${targetYear}-${targetMonth}-01`;
 
   // Compute each engineer (skip those that error)
-  const allResults: { result: EngineerOutput }[] = [];
+  const allResults: { engineer: EngineerData; result: EngineerOutput }[] = [];
   for (const eng of engineers) {
     try {
-      const result = computeCompensation(company, eng, targetPeriodStart);
-      allResults.push({ result });
+      const engineerTargetPeriod = eng.end_date
+        ? formatDateStr(previousPeriodBoundary(eng.end_date))
+        : targetPeriodStart;
+      const target =
+        engineerTargetPeriod < targetPeriodStart
+          ? engineerTargetPeriod
+          : targetPeriodStart;
+      const result = computeCompensation(company, eng, target);
+      allResults.push({ engineer: eng, result });
     } catch {
       // Skip engineers that can't be computed (missing data, etc.)
     }
@@ -586,25 +617,25 @@ export function computeModel(
     const monthStr = `${year}-${String(month).padStart(2, "0")}`;
 
     // Which period covers this month?
-    let periodStart: string;
-    if (month >= 5 && month <= 10) {
-      periodStart = `${year}-05-01`;
-    } else if (month >= 11) {
-      periodStart = `${year}-11-01`;
-    } else {
-      periodStart = `${year - 1}-11-01`;
-    }
+    const periodStart = periodStartForMonth(year, month);
 
     const isPeriodStart = month === 5 || month === 11;
+    const monthStart = parseDate(`${monthStr}-01`);
 
     let totalBase = 0;
     let totalBonusCash = 0;
     let totalEquityOptions = 0;
     let totalEquityValue = 0;
+    let engineersCount = 0;
 
-    for (const { result } of allResults) {
+    for (const { engineer, result } of allResults) {
+      if (!isActiveAt(engineer, monthStart)) {
+        continue;
+      }
+
       const period = result.periods.find((p) => p.start_date === periodStart);
       if (period) {
+        engineersCount++;
         totalBase += period.monthly.base_cash_cents;
 
         if (isPeriodStart) {
@@ -621,6 +652,7 @@ export function computeModel(
 
     output.push({
       month: monthStr,
+      engineers_count: engineersCount,
       base_salary_cents: totalBase,
       is_period_start: isPeriodStart,
       bonus_cash_cents: totalBonusCash,
