@@ -69,7 +69,7 @@ Stored per engineer under engineers/{handle}.json:
     yearly_cash_cents: number
   }[],
   // Bonus equity/cash split decision each period. Period is every 6 months 5/1 and 11/1.
-  // Required for all periods after max(ENGOS_START_DATE, engineer_date).
+  // Required for all periods with standard bonus or base salary overflow bonus.
   // Must be in [RATIO_MINIMUM, 1], so cash is capped by (1 - RATIO_MINIMUM).
   period_bonus_splits: {
     start_date: Date,
@@ -155,10 +155,12 @@ Stored per engineer under engineers/{handle}.json:
 
 **Bonus computation**
 
-- All employees must have a `period_bonus_splits` entry covering all 6-month periods (5/1 and
-  11/1) after `max(ENGOS_START_DATE, engineer_date)`. If missing, error.
+- Employees must have a `period_bonus_splits` entry covering all 6-month periods (5/1 and
+  11/1) with either standard bonus eligibility or base salary overflow bonus. If missing, error.
 - The regular bonus for a period is `yearly_uncapped_base / 2 / 3`, plus redirected overflow:
   `max(0, yearly_uncapped_base - BASE_SALARY_CAP_CENTS) / 2`.
+- The `yearly_uncapped_base / 2 / 3` component starts after `engineer_date`; the base salary
+  overflow component is payable even when `engineer_date` is null.
 - `bonus_total_cents` in monthly/yearly reflects this regular bonus (before 4yr grant
   deduction and equity split).
 

@@ -172,8 +172,8 @@ export function computeCompensation(
     ? parseDate(engineer.engineer_date)
     : null;
 
-  // Earliest date from which bonus splits are required
-  const bonusStartDate = engineerDate
+  // Earliest date from which standard 1/3 bonus starts.
+  const standardBonusStartDate = engineerDate
     ? new Date(Math.max(engosStart.getTime(), engineerDate.getTime()))
     : null;
 
@@ -226,8 +226,11 @@ export function computeCompensation(
     const yearlyBase = Math.min(uncappedYearlyBase, BASE_SALARY_CAP_CENTS);
 
     // --- Check if this period has bonus ---
+    const hasStandardBonusThisPeriod =
+      standardBonusStartDate !== null && periodDate >= standardBonusStartDate;
+    const hasBaseOverflowBonusThisPeriod = yearlyBaseOverflow > 0;
     const hasBonusThisPeriod =
-      bonusStartDate !== null && periodDate >= bonusStartDate;
+      hasStandardBonusThisPeriod || hasBaseOverflowBonusThisPeriod;
 
     // --- BONUS ---
     let regularBonusCore = 0;
@@ -257,14 +260,16 @@ export function computeCompensation(
       );
 
       // Regular bonus for the period:
-      // 1) Standard bonus based on computed (uncapped) base
-      // 2) Plus overflow from capped base redirected to bonus
-      regularBonusCore = uncappedYearlyBase / 2 / 3;
+      // 1) Standard bonus based on computed (uncapped) base, after engineer_date
+      // 2) Plus overflow from capped base redirected to bonus, even before engineer_date
+      regularBonusCore = hasStandardBonusThisPeriod
+        ? uncappedYearlyBase / 2 / 3
+        : 0;
       regularBonusOverflow = yearlyBaseOverflow / 2;
       regularBonus = regularBonusCore + regularBonusOverflow;
 
-      // Pro-rated bonus for first bonus period after engineer_date
-      if (!proRatedBonusApplied) {
+      // Pro-rated bonus for first standard-bonus period after engineer_date
+      if (hasStandardBonusThisPeriod && !proRatedBonusApplied) {
         proRatedBonusApplied = true;
 
         if (engineerDate) {
