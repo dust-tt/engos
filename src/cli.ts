@@ -34,20 +34,36 @@ function formatOptions(count: number): string {
   return count.toLocaleString("en-US");
 }
 
+function printAmountLine(label: string, value: string) {
+  console.log(`    ${`${label}:`.padEnd(29)}${value}`);
+}
+
 function printBreakdown(label: string, b: PeriodBreakdown) {
+  const hasFourYearGrant =
+    b["4_year_grant_equity_options_count"] > 0 ||
+    b["4_year_grant_equity_cash_cents"] > 0;
+  const bonusCashLabel = hasFourYearGrant
+    ? "Bonus (net 4yr) (cash)"
+    : "Bonus (cash)";
+  const bonusEquityLabel = hasFourYearGrant
+    ? "Bonus (net 4yr) (equity)"
+    : "Bonus (equity)";
+
   console.log(`  ${label}:`);
-  console.log(`    Base (cash):            ${formatCents(b.base_cash_cents)}`);
-  console.log(`    Bonus (total):          ${formatCents(b.bonus_total_cents)}`);
-  console.log(`    Bonus (cash):           ${formatCents(b.bonus_cash_cents)}`);
-  console.log(
-    `    Bonus (equity):         ${formatCents(b.bonus_equity_cash_cents)} (${formatOptions(b.bonus_equity_options_count)} options)`
+  printAmountLine("Base (cash)", formatCents(b.base_cash_cents));
+  printAmountLine("Bonus (total)", formatCents(b.bonus_total_cents));
+  if (hasFourYearGrant) {
+    printAmountLine(
+      "4yr Grant (equity)",
+      `${formatCents(b["4_year_grant_equity_cash_cents"])} (${formatOptions(b["4_year_grant_equity_options_count"])} options)`
+    );
+  }
+  printAmountLine(bonusCashLabel, formatCents(b.bonus_cash_cents));
+  printAmountLine(
+    bonusEquityLabel,
+    `${formatCents(b.bonus_equity_cash_cents)} (${formatOptions(b.bonus_equity_options_count)} options)`
   );
-  console.log(
-    `    4yr Grant (equity):     ${formatCents(b["4_year_grant_equity_cash_cents"])} (${formatOptions(b["4_year_grant_equity_options_count"])} options)`
-  );
-  console.log(
-    `    Total:                  ${formatCents(b.total_cash_cents)}`
-  );
+  printAmountLine("Total", formatCents(b.total_cash_cents));
 }
 
 /** Compute the next period start (next 5/1 or 11/1 from today). */

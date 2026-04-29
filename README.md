@@ -18,8 +18,8 @@ npx tsx src/cli.ts jazz {handle} {ratio} -m 3 -f 24
 
 Stored in code:
 ```
-ENGOS_START_DATE="2026-05-01"
-BASE_SALARY_CAP_CENTS = 130_000_00;
+ENGOS_START_DATE="2026-05-11"
+BASE_SALARY_CAP_CENTS = 135_000_00;
 RATIO_MINIMUM = 0.5;
 ```
 

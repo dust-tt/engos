@@ -18,10 +18,6 @@
   ],
   "period_bonus_splits": [
     {
-      "start_date": "2025-05-01",
-      "bonus_equity_ratio": 0.5
-    },
-    {
       "start_date": "2025-11-01",
       "bonus_equity_ratio": 0.5
     },

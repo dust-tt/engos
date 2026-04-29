@@ -7,8 +7,8 @@ import {
   NewGrant,
 } from "./types.js";
 
-const ENGOS_START_DATE = "2025-05-01";
-const BASE_SALARY_CAP_CENTS = 130_000_00; // 130k EUR/year
+const ENGOS_START_DATE = "2025-05-11";
+const BASE_SALARY_CAP_CENTS = 135_000_00; // 135k EUR/year
 export const RATIO_MINIMUM = 0.5;
 
 function validateBonusEquityRatio(ratio: number, context: string): void {
