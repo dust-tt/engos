@@ -158,15 +158,15 @@ Stored per engineer under engineers/{handle}.json:
 - If the base salary entry is at the period start, no raise is applied for that period. If it
   is strictly before the period, one raise is applied.
 - Base cash is capped at BASE_SALARY_CAP_CENTS EUR/year; any computed base above that cap is
-  redirected to bonus (while bonus still uses the computed uncapped base for its `1/3` component).
+  redirected to bonus (while bonus still uses the computed uncapped base for its 1/2 component).
 
 **Bonus computation**
 
 - Employees must have a `period_bonus_splits` entry covering all 6-month periods (5/1 and
   11/1) with either standard bonus eligibility or base salary overflow bonus. If missing, error.
-- The regular bonus for a period is `yearly_uncapped_base / 2 / 3`, plus redirected overflow:
+- The regular bonus for a period is `yearly_uncapped_base / 2 / 2`, plus redirected overflow:
   `max(0, yearly_uncapped_base - BASE_SALARY_CAP_CENTS) / 2`.
-- The `yearly_uncapped_base / 2 / 3` component starts after `engineer_date`; the base salary
+- The `yearly_uncapped_base / 2 / 2` component starts after `engineer_date`; the base salary
   overflow component is payable even when `engineer_date` is null.
 - `bonus_total_cents` in monthly/yearly reflects this regular bonus (before 4yr grant
   deduction and equity split).
@@ -175,7 +175,7 @@ Stored per engineer under engineers/{handle}.json:
 
 - For the first bonus-eligible period after `engineer_date`, if `engineer_date` falls within
   the 6-month window before the period (between the previous period boundary and period start),
-  a pro-rated bonus is added: `(pre_increase_base / 3) * (days / 365)` where days is the gap
+  a pro-rated bonus is added: `(pre_increase_base / 2) * (days / 365)` where days is the gap
   between `engineer_date` and the period start.
 - The prorate is a one-time catch-up. Monthly and yearly values exclude the prorate to show
   steady-state compensation. The prorate is reported separately in `new_bonus` and `new_grant`.
@@ -185,9 +185,9 @@ Stored per engineer under engineers/{handle}.json:
 - Employees may have `4_year_grants`: each grant vests linearly over 48 months. Monthly vesting
   = `options_count / 48`. Cash equivalent = monthly vesting * current `preferred_price_cents`.
 - The 4yr grant cash equivalent is subtracted from the bonus independently for each portion:
-  - Regular: 6-month grant cash (`monthly_cash * 6`) subtracted from regular 1/3 bonus
+  - Regular: 6-month grant cash (`monthly_cash * 6`) subtracted from regular 1/2 bonus
   - Prorate: proportional grant cash (`monthly_cash * 12 * days / 365`) subtracted from
-    prorate 1/3 bonus
+    prorate 1/2 bonus
 - The base-cap overflow bonus component is preserved (not reduced by 4yr grant subtraction), so
   capped base overflow always remains payable via the regular/prorate bonus paths.
 - If the 4yr grant cash exceeds the bonus portion, that portion's bonus is 0 (just report the

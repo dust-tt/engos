@@ -178,7 +178,7 @@ export function computeCompensation(
     ? parseDate(engineer.engineer_date)
     : null;
 
-  // Earliest date from which standard 1/3 bonus starts.
+  // Earliest date from which standard 1/2 bonus starts.
   const standardBonusStartDate = engineerDate
     ? new Date(Math.max(engosStart.getTime(), engineerDate.getTime()))
     : null;
@@ -276,7 +276,7 @@ export function computeCompensation(
       // 1) Standard bonus based on computed (uncapped) base, after engineer_date
       // 2) Plus overflow from capped base redirected to bonus, even before engineer_date
       regularBonusCore = hasStandardBonusThisPeriod
-        ? uncappedYearlyBase / 2 / 3
+        ? uncappedYearlyBase / 2 / 2
         : 0;
       regularBonusOverflow = yearlyBaseOverflow / 2;
       regularBonus = regularBonusCore + regularBonusOverflow;
@@ -294,7 +294,7 @@ export function computeCompensation(
               0,
               baseBefore - BASE_SALARY_CAP_CENTS
             );
-            proRateBonusCore = (baseBefore / 3) * (proRateDays / 365);
+            proRateBonusCore = (baseBefore / 2) * (proRateDays / 365);
             proRateBonusOverflow = baseBeforeOverflow * (proRateDays / 365);
             proRateBonus = proRateBonusCore + proRateBonusOverflow;
           }
