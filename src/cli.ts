@@ -239,6 +239,7 @@ const executeHeaders = [
   "engineer",
   "new_base",
   "bonus_equity_ratio",
+  "overflow_equity_ratio",
   "period_bonus",
   "period_grant_options",
   "period_grant_value",
@@ -258,6 +259,9 @@ function periodReportRow(
     handle,
     cents(period.new_base.value_cents),
     period.bonus_equity_ratio !== null ? String(period.bonus_equity_ratio) : "",
+    period.overflow_equity_ratio !== null
+      ? String(period.overflow_equity_ratio)
+      : "",
     period.new_bonus ? cents(period.new_bonus.value_cents) : empty,
     period.new_grant ? options(period.new_grant.options_count) : empty,
     period.new_grant ? cents(period.new_grant.value_cents) : empty,

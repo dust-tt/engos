@@ -20,6 +20,12 @@ function validateBonusEquityRatio(ratio: number, context: string): void {
   }
 }
 
+function validateOverflowEquityRatio(ratio: number, context: string): void {
+  if (!Number.isFinite(ratio) || ratio < 0 || ratio > 1) {
+    throw new Error(`${context}: overflow_equity_ratio must be between 0 and 1`);
+  }
+}
+
 function parseDate(s: string): Date {
   return new Date(s + "T00:00:00");
 }
@@ -245,6 +251,7 @@ export function computeCompensation(
     let proRateBonus = 0;
     let proRateDays = 0;
     let bonusEquityRatio = 0;
+    let overflowEquityRatio = 0;
 
     if (hasBonusThisPeriod) {
       // Look up bonus split
@@ -256,6 +263,12 @@ export function computeCompensation(
       bonusEquityRatio = configuredBonusSplit.bonus_equity_ratio;
       validateBonusEquityRatio(
         bonusEquityRatio,
+        `Invalid period_bonus_splits entry for period ${periodStart}`
+      );
+      overflowEquityRatio =
+        configuredBonusSplit.overflow_equity_ratio ?? bonusEquityRatio;
+      validateOverflowEquityRatio(
+        overflowEquityRatio,
         `Invalid period_bonus_splits entry for period ${periodStart}`
       );
 
@@ -314,7 +327,6 @@ export function computeCompensation(
       0,
       regularBonusCore - fourYearPeriodCash
     );
-    const regularRemaining = regularCoreRemaining + regularBonusOverflow;
 
     // Prorate: 4yr grant vesting over the prorate days (core bonus component only)
     const fourYearProRateCash =
@@ -323,13 +335,20 @@ export function computeCompensation(
       0,
       proRateBonusCore - fourYearProRateCash
     );
-    const proRateRemaining = proRateCoreRemaining + proRateBonusOverflow;
 
     // --- Split remaining bonus between cash and equity ---
-    const regularCashPeriod = regularRemaining * (1 - bonusEquityRatio);
-    const regularEquityPeriod = regularRemaining * bonusEquityRatio;
-    const proRateCashPeriod = proRateRemaining * (1 - bonusEquityRatio);
-    const proRateEquityPeriod = proRateRemaining * bonusEquityRatio;
+    const regularCashPeriod =
+      regularCoreRemaining * (1 - bonusEquityRatio) +
+      regularBonusOverflow * (1 - overflowEquityRatio);
+    const regularEquityPeriod =
+      regularCoreRemaining * bonusEquityRatio +
+      regularBonusOverflow * overflowEquityRatio;
+    const proRateCashPeriod =
+      proRateCoreRemaining * (1 - bonusEquityRatio) +
+      proRateBonusOverflow * (1 - overflowEquityRatio);
+    const proRateEquityPeriod =
+      proRateCoreRemaining * bonusEquityRatio +
+      proRateBonusOverflow * overflowEquityRatio;
 
     const totalCashPeriod = regularCashPeriod + proRateCashPeriod;
     const totalEquityPeriod = regularEquityPeriod + proRateEquityPeriod;
@@ -408,6 +427,10 @@ export function computeCompensation(
       yearly,
       bonus_equity_ratio:
         configuredBonusSplit?.bonus_equity_ratio ?? null,
+      overflow_equity_ratio:
+        configuredBonusSplit?.overflow_equity_ratio ??
+        configuredBonusSplit?.bonus_equity_ratio ??
+        null,
       new_base: newBase,
       new_bonus: newBonus,
       new_grant: newGrant,

@@ -29,6 +29,7 @@ export interface BaseSalaryEntry {
 export interface PeriodBonusSplit {
   start_date: string;
   bonus_equity_ratio: number;
+  overflow_equity_ratio?: number;
 }
 
 export interface EngineerData {
@@ -77,6 +78,7 @@ export interface PeriodOutput {
   monthly: PeriodBreakdown;
   yearly: PeriodBreakdown;
   bonus_equity_ratio: number | null;
+  overflow_equity_ratio: number | null;
   new_base: NewBase;
   new_bonus: NewBonus | null;
   new_grant: NewGrant | null;

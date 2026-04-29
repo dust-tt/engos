@@ -77,7 +77,8 @@ Stored per engineer under engineers/{handle}.json:
   // Must be in [RATIO_MINIMUM, 1], so cash is capped by (1 - RATIO_MINIMUM).
   period_bonus_splits: {
     start_date: Date,
-    bonus_equity_ratio: number
+    bonus_equity_ratio: number,
+    overflow_equity_ratio?: number
   }[]
 }
 ```
@@ -110,6 +111,7 @@ Stored per engineer under engineers/{handle}.json:
        total_cash_cents: number,
     },
     bonus_equity_ratio: number | null,
+    overflow_equity_ratio: number | null,
     // Annual base salary for the period, after the base salary cap is applied.
     new_base: {
       value_cents: number,
@@ -199,11 +201,15 @@ Stored per engineer under engineers/{handle}.json:
 
 **Equity split**
 
-- After 4yr grant deduction, the remaining bonus is split per `bonus_equity_ratio`:
-  - Cash portion: `remaining * (1 - bonus_equity_ratio)`
-  - Equity portion: `remaining * bonus_equity_ratio`
+- After 4yr grant deduction, the remaining standard bonus is split per
+  `bonus_equity_ratio`:
+  - Cash portion: `remaining_standard * (1 - bonus_equity_ratio)`
+  - Equity portion: `remaining_standard * bonus_equity_ratio`
 - `bonus_equity_ratio` is enforced in `[RATIO_MINIMUM, 1]`, so engineers cannot take more than
   `(1 - RATIO_MINIMUM)` of bonus in cash.
+- Base salary overflow is split per `overflow_equity_ratio`, defaulting to
+  `bonus_equity_ratio` when unset. `overflow_equity_ratio` is enforced in `[0, 1]`, without
+  the `RATIO_MINIMUM` lower bound.
 - The equity portion is converted to `options_count` using the current `preferred_price_cents`
   at the period start date. This is the total options to grant on a 6-month vesting schedule
   with no cliff.
