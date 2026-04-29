@@ -76,6 +76,7 @@ export interface PeriodOutput {
   start_date: string;
   monthly: PeriodBreakdown;
   yearly: PeriodBreakdown;
+  bonus_equity_ratio: number | null;
   new_base: NewBase;
   new_bonus: NewBonus | null;
   new_grant: NewGrant | null;

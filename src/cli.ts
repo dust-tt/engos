@@ -1,7 +1,12 @@
 import { readFileSync, readdirSync } from "fs";
 import { resolve } from "path";
 import { program } from "commander";
-import { CompanyData, EngineerData, PeriodBreakdown } from "./types.js";
+import {
+  CompanyData,
+  EngineerData,
+  PeriodBreakdown,
+  PeriodOutput,
+} from "./types.js";
 import {
   computeCompensation,
   computeModel,
@@ -32,6 +37,31 @@ function formatPrice(cents: number): string {
 
 function formatOptions(count: number): string {
   return count.toLocaleString("en-US");
+}
+
+function formatPlainNumber(value: number): string {
+  return String(Math.ceil(value));
+}
+
+function csvEscape(value: string): string {
+  if (!/[",\n\r]/.test(value)) {
+    return value;
+  }
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function printTable(headers: string[], rows: string[][]) {
+  const widths = headers.map((h, i) =>
+    Math.max(h.length, ...rows.map((row) => row[i].length))
+  );
+  const formatRow = (row: string[]) =>
+    row.map((cell, i) => cell.padEnd(widths[i])).join(" | ");
+
+  console.log(formatRow(headers));
+  console.log(widths.map((w) => "-".repeat(w)).join("-|-"));
+  for (const row of rows) {
+    console.log(formatRow(row));
+  }
 }
 
 function printAmountLine(label: string, value: string) {
@@ -116,6 +146,29 @@ function loadData(handle: string): {
   return { company, engineer };
 }
 
+function loadCompany(): CompanyData {
+  const companyPath = resolve("company.json");
+  try {
+    return JSON.parse(readFileSync(companyPath, "utf-8"));
+  } catch {
+    console.error(`Error: could not read ${companyPath}`);
+    process.exit(1);
+  }
+}
+
+function listEngineerHandles(): string[] {
+  const engineersDir = resolve("engineers");
+  return readdirSync(engineersDir)
+    .filter((f) => f.endsWith(".json") && !f.startsWith("test"))
+    .map((f) => f.replace(/\.json$/, ""))
+    .sort();
+}
+
+function loadEngineer(handle: string): EngineerData {
+  const engineerPath = resolve("engineers", `${handle}.json`);
+  return JSON.parse(readFileSync(engineerPath, "utf-8"));
+}
+
 program
   .name("engos")
   .description("EngOS engineer compensation");
@@ -178,6 +231,89 @@ program
       } else {
         console.log(`  Period Grant: none`);
       }
+      console.log();
+    }
+  });
+
+const executeHeaders = [
+  "engineer",
+  "new_base",
+  "bonus_equity_ratio",
+  "period_bonus",
+  "period_grant_options",
+  "period_grant_value",
+  "error",
+];
+
+function periodReportRow(
+  handle: string,
+  period: PeriodOutput,
+  csv: boolean
+): string[] {
+  const cents = csv ? formatPlainNumber : formatCents;
+  const options = csv ? formatPlainNumber : formatOptions;
+  const empty = csv ? "0" : "-";
+
+  return [
+    handle,
+    cents(period.new_base.value_cents),
+    period.bonus_equity_ratio !== null ? String(period.bonus_equity_ratio) : "",
+    period.new_bonus ? cents(period.new_bonus.value_cents) : empty,
+    period.new_grant ? options(period.new_grant.options_count) : empty,
+    period.new_grant ? cents(period.new_grant.value_cents) : empty,
+    "",
+  ];
+}
+
+function periodErrorRow(handle: string, error: string): string[] {
+  return [
+    handle,
+    ...Array(executeHeaders.length - 2).fill(""),
+    error,
+  ];
+}
+
+program
+  .command("execute")
+  .description("Compute period output for all engineers")
+  .option(
+    "-p, --period <date>",
+    "Target period start (YYYY-MM-DD), defaults to next 5/1 or 11/1"
+  )
+  .option("--csv", "Print CSV instead of a table")
+  .action((opts: { period?: string; csv?: boolean }) => {
+    const targetPeriod = opts.period || getNextPeriodStart();
+    const company = loadCompany();
+    const handles = listEngineerHandles();
+    const rows: string[][] = [];
+
+    for (const handle of handles) {
+      try {
+        const engineer = loadEngineer(handle);
+        if (engineer.end_date !== null) {
+          continue;
+        }
+        const result = computeCompensation(company, engineer, targetPeriod);
+        const period = result.periods.find((p) => p.start_date === targetPeriod);
+        if (!period) {
+          rows.push(periodErrorRow(handle, "No period output for target"));
+          continue;
+        }
+        rows.push(periodReportRow(handle, period, Boolean(opts.csv)));
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        rows.push(periodErrorRow(handle, message));
+      }
+    }
+
+    if (opts.csv) {
+      console.log(executeHeaders.map(csvEscape).join(","));
+      for (const row of rows) {
+        console.log(row.map(csvEscape).join(","));
+      }
+    } else {
+      console.log(`\n=== Period Execution: ${targetPeriod} (${handles.length} engineers) ===\n`);
+      printTable(executeHeaders, rows);
       console.log();
     }
   });

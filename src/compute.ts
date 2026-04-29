@@ -231,6 +231,10 @@ export function computeCompensation(
     const hasBaseOverflowBonusThisPeriod = yearlyBaseOverflow > 0;
     const hasBonusThisPeriod =
       hasStandardBonusThisPeriod || hasBaseOverflowBonusThisPeriod;
+    const configuredBonusSplit = findApplicableEntry(
+      engineer.period_bonus_splits,
+      periodStart
+    );
 
     // --- BONUS ---
     let regularBonusCore = 0;
@@ -244,16 +248,12 @@ export function computeCompensation(
 
     if (hasBonusThisPeriod) {
       // Look up bonus split
-      const bonusSplit = findApplicableEntry(
-        engineer.period_bonus_splits,
-        periodStart
-      );
-      if (!bonusSplit) {
+      if (!configuredBonusSplit) {
         throw new Error(
           `Missing period_bonus_splits entry for period ${periodStart}`
         );
       }
-      bonusEquityRatio = bonusSplit.bonus_equity_ratio;
+      bonusEquityRatio = configuredBonusSplit.bonus_equity_ratio;
       validateBonusEquityRatio(
         bonusEquityRatio,
         `Invalid period_bonus_splits entry for period ${periodStart}`
@@ -406,6 +406,8 @@ export function computeCompensation(
       start_date: periodStart,
       monthly,
       yearly,
+      bonus_equity_ratio:
+        configuredBonusSplit?.bonus_equity_ratio ?? null,
       new_base: newBase,
       new_bonus: newBonus,
       new_grant: newGrant,

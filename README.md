@@ -9,6 +9,10 @@ All monetary amounts are in EUR cents.
 npx tsx src/cli.ts {handle}
 npx tsx src/cli.ts period {handle} -p 2026-11-01
 
+# Period compensation for all engineers
+npx tsx src/cli.ts execute -p 2026-11-01
+npx tsx src/cli.ts execute -p 2026-11-01 --csv
+
 # Equity projection through 2030
 npx tsx src/cli.ts jazz {handle} {ratio}
 npx tsx src/cli.ts jazz {handle} {ratio} -m 3 -f 24
@@ -105,6 +109,7 @@ Stored per engineer under engineers/{handle}.json:
        4_year_grant_equity_cash_cents: number,
        total_cash_cents: number,
     },
+    bonus_equity_ratio: number | null,
     // Annual base salary for the period, after the base salary cap is applied.
     new_base: {
       value_cents: number,
