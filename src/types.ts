@@ -68,10 +68,15 @@ export interface NewBonus {
   value_cents: number;
 }
 
+export interface NewBase {
+  value_cents: number;
+}
+
 export interface PeriodOutput {
   start_date: string;
   monthly: PeriodBreakdown;
   yearly: PeriodBreakdown;
+  new_base: NewBase;
   new_bonus: NewBonus | null;
   new_grant: NewGrant | null;
 }

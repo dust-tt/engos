@@ -3,11 +3,12 @@ import {
   EngineerData,
   EngineerOutput,
   PeriodOutput,
+  NewBase,
   NewBonus,
   NewGrant,
 } from "./types.js";
 
-const ENGOS_START_DATE = "2025-05-11";
+const ENGOS_START_DATE = "2025-11-01";
 const BASE_SALARY_CAP_CENTS = 135_000_00; // 135k EUR/year
 export const RATIO_MINIMUM = 0.5;
 
@@ -366,6 +367,11 @@ export function computeCompensation(
       total_cash_cents: monthly.total_cash_cents * 12,
     };
 
+    // --- New base (annual base salary for this period) ---
+    const newBase: NewBase = {
+      value_cents: Math.ceil(yearlyBase),
+    };
+
     // --- New bonus (period cash bonus to pay) ---
     let newBonus: NewBonus | null = null;
     const totalBonusCash = Math.ceil(totalCashPeriod);
@@ -395,6 +401,7 @@ export function computeCompensation(
       start_date: periodStart,
       monthly,
       yearly,
+      new_base: newBase,
       new_bonus: newBonus,
       new_grant: newGrant,
     });

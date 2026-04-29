@@ -155,26 +155,28 @@ program
       printBreakdown("Yearly (annualized)", period.yearly);
       console.log();
 
+      console.log(`  New Base: ${formatCents(period.new_base.value_cents)}`);
+
       if (period.new_bonus) {
         const b = period.new_bonus;
-        let line = `  New Bonus: ${formatCents(b.value_cents)}`;
+        let line = `  Period Bonus: ${formatCents(b.value_cents)}`;
         if (b.prorate_value_cents > 0) {
           line += ` (regular: ${formatCents(b.regular_value_cents)}, prorate: ${formatCents(b.prorate_value_cents)})`;
         }
         console.log(line);
       } else {
-        console.log(`  New Bonus: none`);
+        console.log(`  Period Bonus: none`);
       }
 
       if (period.new_grant) {
         const g = period.new_grant;
-        let line = `  New Grant: ${formatOptions(g.options_count)} options (${formatCents(g.value_cents)})`;
+        let line = `  Period Grant: ${formatOptions(g.options_count)} options (${formatCents(g.value_cents)})`;
         if (g.prorate_options_count > 0) {
           line += ` (regular: ${formatOptions(g.regular_options_count)} options, prorate: ${formatOptions(g.prorate_options_count)} options)`;
         }
         console.log(line);
       } else {
-        console.log(`  New Grant: none`);
+        console.log(`  Period Grant: none`);
       }
       console.log();
     }

@@ -18,7 +18,7 @@ npx tsx src/cli.ts jazz {handle} {ratio} -m 3 -f 24
 
 Stored in code:
 ```
-ENGOS_START_DATE="2026-05-11"
+ENGOS_START_DATE="2026-11-01"
 BASE_SALARY_CAP_CENTS = 135_000_00;
 RATIO_MINIMUM = 0.5;
 ```
@@ -104,6 +104,10 @@ Stored per engineer under engineers/{handle}.json:
        4_year_grant_equity_options_count: number,
        4_year_grant_equity_cash_cents: number,
        total_cash_cents: number,
+    },
+    // Annual base salary for the period, after the base salary cap is applied.
+    new_base: {
+      value_cents: number,
     },
     // Actual cash bonus to pay for the period. Includes regular + prorate if applicable.
     new_bonus: {
@@ -200,6 +204,8 @@ Stored per engineer under engineers/{handle}.json:
 **Output values**
 
 - `monthly` and `yearly` breakdowns reflect regular (steady-state) values only.
+- `new_base` is the exact annual base salary for the period, after the base salary cap is
+  applied.
 - `new_bonus` and `new_grant` represent actual amounts for the period, breaking out `regular`
   and `prorate` components.
 - `total_cash_cents = base_cash + bonus_cash + bonus_equity_cash + 4yr_grant_equity_cash`.
