@@ -50,16 +50,24 @@ function csvEscape(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
-function printTable(headers: string[], rows: string[][]) {
+function printTable(
+  headers: string[],
+  rows: string[][],
+  opts: { separatorBefore?: (row: string[]) => boolean } = {}
+) {
   const widths = headers.map((h, i) =>
     Math.max(h.length, ...rows.map((row) => row[i].length))
   );
   const formatRow = (row: string[]) =>
     row.map((cell, i) => cell.padEnd(widths[i])).join(" | ");
+  const separator = widths.map((w) => "-".repeat(w)).join("-|-");
 
   console.log(formatRow(headers));
-  console.log(widths.map((w) => "-".repeat(w)).join("-|-"));
+  console.log(separator);
   for (const row of rows) {
+    if (opts.separatorBefore?.(row)) {
+      console.log(separator);
+    }
     console.log(formatRow(row));
   }
 }
@@ -277,6 +285,31 @@ function periodErrorRow(handle: string, error: string): string[] {
   ];
 }
 
+function periodTotalRow(totals: {
+  newBaseCents: number;
+  bonusEquityRatioSum: number;
+  bonusEquityRatioCount: number;
+  overflowEquityRatioSum: number;
+  overflowEquityRatioCount: number;
+  bonusCents: number;
+  grantOptions: number;
+  grantValueCents: number;
+}): string[] {
+  const avg = (sum: number, count: number) =>
+    count > 0 ? String(Math.round((sum / count) * 100) / 100) : "";
+
+  return [
+    "TOTAL",
+    formatCents(totals.newBaseCents),
+    avg(totals.bonusEquityRatioSum, totals.bonusEquityRatioCount),
+    avg(totals.overflowEquityRatioSum, totals.overflowEquityRatioCount),
+    formatCents(totals.bonusCents),
+    formatOptions(totals.grantOptions),
+    formatCents(totals.grantValueCents),
+    "",
+  ];
+}
+
 program
   .command("execute")
   .description("Compute period output for all engineers")
@@ -290,6 +323,16 @@ program
     const company = loadCompany();
     const handles = listEngineerHandles();
     const rows: string[][] = [];
+    const totals = {
+      newBaseCents: 0,
+      bonusEquityRatioSum: 0,
+      bonusEquityRatioCount: 0,
+      overflowEquityRatioSum: 0,
+      overflowEquityRatioCount: 0,
+      bonusCents: 0,
+      grantOptions: 0,
+      grantValueCents: 0,
+    };
 
     for (const handle of handles) {
       try {
@@ -303,6 +346,18 @@ program
           rows.push(periodErrorRow(handle, "No period output for target"));
           continue;
         }
+        totals.newBaseCents += period.new_base.value_cents;
+        if (period.bonus_equity_ratio !== null) {
+          totals.bonusEquityRatioSum += period.bonus_equity_ratio;
+          totals.bonusEquityRatioCount += 1;
+        }
+        if (period.overflow_equity_ratio !== null) {
+          totals.overflowEquityRatioSum += period.overflow_equity_ratio;
+          totals.overflowEquityRatioCount += 1;
+        }
+        totals.bonusCents += period.new_bonus?.value_cents ?? 0;
+        totals.grantOptions += period.new_grant?.options_count ?? 0;
+        totals.grantValueCents += period.new_grant?.value_cents ?? 0;
         rows.push(periodReportRow(handle, period, Boolean(opts.csv)));
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
@@ -317,7 +372,9 @@ program
       }
     } else {
       console.log(`\n=== Period Execution: ${targetPeriod} (${handles.length} engineers) ===\n`);
-      printTable(executeHeaders, rows);
+      printTable(executeHeaders, [...rows, periodTotalRow(totals)], {
+        separatorBefore: (row) => row[0] === "TOTAL",
+      });
       console.log();
     }
   });
