@@ -305,10 +305,6 @@ type ExecuteOutputMode =
   | "csv-hibob-equity"
   | "csv-hibob-base";
 
-function companyEmail(handle: string): string {
-  return `${handle}@dust.tt`;
-}
-
 function periodReportRow(
   handle: string,
   period: PeriodOutput,
@@ -332,13 +328,16 @@ function periodReportRow(
   ];
 }
 
-function hibobCashRow(handle: string, period: PeriodOutput): string[] | null {
+function hibobCashRow(
+  engineer: EngineerData,
+  period: PeriodOutput
+): string[] | null {
   if (!period.new_bonus) {
     return null;
   }
 
   return [
-    companyEmail(handle),
+    engineer.email,
     formatHibobDate(period.start_date),
     "EngOS cash variable",
     formatPlainEuros(period.new_bonus.value_cents),
@@ -349,13 +348,16 @@ function hibobCashRow(handle: string, period: PeriodOutput): string[] | null {
   ];
 }
 
-function hibobEquityRow(handle: string, period: PeriodOutput): string[] | null {
+function hibobEquityRow(
+  engineer: EngineerData,
+  period: PeriodOutput
+): string[] | null {
   if (!period.new_grant) {
     return null;
   }
 
   return [
-    companyEmail(handle),
+    engineer.email,
     "0",
     "BSPCE",
     "EngOS Grant",
@@ -370,9 +372,9 @@ function hibobEquityRow(handle: string, period: PeriodOutput): string[] | null {
   ];
 }
 
-function hibobBaseRow(handle: string, period: PeriodOutput): string[] {
+function hibobBaseRow(engineer: EngineerData, period: PeriodOutput): string[] {
   return [
-    companyEmail(handle),
+    engineer.email,
     formatHibobDate(period.start_date),
     formatPlainEuros(period.new_base.value_cents),
     "EUR",
@@ -505,15 +507,15 @@ program
         totals.grantValueCents += period.new_grant?.value_cents ?? 0;
         rows.push(periodReportRow(handle, period, outputMode === "csv"));
 
-        const cashRow = hibobCashRow(handle, period);
+        const cashRow = hibobCashRow(engineer, period);
         if (cashRow) {
           hibobCashRows.push(cashRow);
         }
-        const equityRow = hibobEquityRow(handle, period);
+        const equityRow = hibobEquityRow(engineer, period);
         if (equityRow) {
           hibobEquityRows.push(equityRow);
         }
-        hibobBaseRows.push(hibobBaseRow(handle, period));
+        hibobBaseRows.push(hibobBaseRow(engineer, period));
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         rows.push(periodErrorRow(handle, message));

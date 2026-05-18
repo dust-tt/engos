@@ -33,6 +33,7 @@ export interface PeriodBonusSplit {
 }
 
 export interface EngineerData {
+  email: string;
   start_date: string;
   end_date: string | null;
   engineer_date: string | null;
