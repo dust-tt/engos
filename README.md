@@ -12,6 +12,9 @@ npx tsx src/cli.ts period {handle} -p 2026-11-01
 # Period compensation for all engineers
 npx tsx src/cli.ts execute -p 2026-11-01
 npx tsx src/cli.ts execute -p 2026-11-01 --csv
+npx tsx src/cli.ts execute -p 2026-11-01 --csv-hibob-cash
+npx tsx src/cli.ts execute -p 2026-11-01 --csv-hibob-equity
+npx tsx src/cli.ts execute -p 2026-11-01 --csv-hibob-base
 
 # Equity projection through 2030
 npx tsx src/cli.ts jazz {handle} {ratio}

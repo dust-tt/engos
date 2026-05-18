@@ -43,6 +43,15 @@ function formatPlainNumber(value: number): string {
   return String(Math.ceil(value));
 }
 
+function formatPlainEuros(cents: number): string {
+  return String(Math.ceil(cents / 100));
+}
+
+function formatHibobDate(date: string): string {
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 function csvEscape(value: string): string {
   if (!/[",\n\r]/.test(value)) {
     return value;
@@ -254,6 +263,52 @@ const executeHeaders = [
   "error",
 ];
 
+const hibobCashHeaders = [
+  "Company email",
+  "Effective date",
+  "Variable type",
+  "Amount",
+  "Currency",
+  "Pay period",
+  "Pay frequency",
+  "Payout type",
+];
+
+const hibobEquityHeaders = [
+  "Company email",
+  "Grant number",
+  "Equity type",
+  "Grant type",
+  "Initial quantity",
+  "Vesting effective date",
+  "Vesting schedule",
+  "Grant status",
+  "Exercise price",
+  "Exercise price currency",
+  "Grant amount",
+  "Grant amount currency",
+];
+
+const hibobBaseHeaders = [
+  "Company email",
+  "Effective date",
+  "Base Salary Amount",
+  "Currency",
+  "Salary Pay period",
+  "Salary Pay frequency",
+];
+
+type ExecuteOutputMode =
+  | "table"
+  | "csv"
+  | "csv-hibob-cash"
+  | "csv-hibob-equity"
+  | "csv-hibob-base";
+
+function companyEmail(handle: string): string {
+  return `${handle}@dust.tt`;
+}
+
 function periodReportRow(
   handle: string,
   period: PeriodOutput,
@@ -274,6 +329,55 @@ function periodReportRow(
     period.new_grant ? options(period.new_grant.options_count) : empty,
     period.new_grant ? cents(period.new_grant.value_cents) : empty,
     "",
+  ];
+}
+
+function hibobCashRow(handle: string, period: PeriodOutput): string[] | null {
+  if (!period.new_bonus) {
+    return null;
+  }
+
+  return [
+    companyEmail(handle),
+    formatHibobDate(period.start_date),
+    "EngOS cash variable",
+    formatPlainEuros(period.new_bonus.value_cents),
+    "EUR",
+    "Half-Yearly",
+    "One time",
+    "Amount",
+  ];
+}
+
+function hibobEquityRow(handle: string, period: PeriodOutput): string[] | null {
+  if (!period.new_grant) {
+    return null;
+  }
+
+  return [
+    companyEmail(handle),
+    "0",
+    "BSPCE",
+    "EngOS Grant",
+    formatPlainNumber(period.new_grant.options_count),
+    "",
+    "EngOS",
+    "Pending approval",
+    "",
+    "",
+    "",
+    "",
+  ];
+}
+
+function hibobBaseRow(handle: string, period: PeriodOutput): string[] {
+  return [
+    companyEmail(handle),
+    formatHibobDate(period.start_date),
+    formatPlainEuros(period.new_base.value_cents),
+    "EUR",
+    "Annual",
+    "Monthly",
   ];
 }
 
@@ -310,6 +414,33 @@ function periodTotalRow(totals: {
   ];
 }
 
+function printCsv(headers: string[], rows: string[][]): void {
+  console.log(headers.map(csvEscape).join(","));
+  for (const row of rows) {
+    console.log(row.map(csvEscape).join(","));
+  }
+}
+
+function getExecuteOutputMode(opts: {
+  csv?: boolean;
+  csvHibobCash?: boolean;
+  csvHibobEquity?: boolean;
+  csvHibobBase?: boolean;
+}): ExecuteOutputMode {
+  const selected: ExecuteOutputMode[] = [];
+  if (opts.csv) selected.push("csv");
+  if (opts.csvHibobCash) selected.push("csv-hibob-cash");
+  if (opts.csvHibobEquity) selected.push("csv-hibob-equity");
+  if (opts.csvHibobBase) selected.push("csv-hibob-base");
+
+  if (selected.length > 1) {
+    console.error("Error: choose only one CSV output option");
+    process.exit(1);
+  }
+
+  return selected[0] ?? "table";
+}
+
 program
   .command("execute")
   .description("Compute period output for all engineers")
@@ -318,11 +449,25 @@ program
     "Target period start (YYYY-MM-DD), defaults to next 5/1 or 11/1"
   )
   .option("--csv", "Print CSV instead of a table")
-  .action((opts: { period?: string; csv?: boolean }) => {
+  .option("--csv-hibob-cash", "Print HiBob cash variable CSV")
+  .option("--csv-hibob-equity", "Print HiBob equity grant CSV")
+  .option("--csv-hibob-base", "Print HiBob base salary CSV")
+  .action((opts: {
+    period?: string;
+    csv?: boolean;
+    csvHibobCash?: boolean;
+    csvHibobEquity?: boolean;
+    csvHibobBase?: boolean;
+  }) => {
     const targetPeriod = opts.period || getNextPeriodStart();
+    const outputMode = getExecuteOutputMode(opts);
     const company = loadCompany();
     const handles = listEngineerHandles();
     const rows: string[][] = [];
+    const hibobCashRows: string[][] = [];
+    const hibobEquityRows: string[][] = [];
+    const hibobBaseRows: string[][] = [];
+    const errors: string[] = [];
     const totals = {
       newBaseCents: 0,
       bonusEquityRatioSum: 0,
@@ -358,24 +503,56 @@ program
         totals.bonusCents += period.new_bonus?.value_cents ?? 0;
         totals.grantOptions += period.new_grant?.options_count ?? 0;
         totals.grantValueCents += period.new_grant?.value_cents ?? 0;
-        rows.push(periodReportRow(handle, period, Boolean(opts.csv)));
+        rows.push(periodReportRow(handle, period, outputMode === "csv"));
+
+        const cashRow = hibobCashRow(handle, period);
+        if (cashRow) {
+          hibobCashRows.push(cashRow);
+        }
+        const equityRow = hibobEquityRow(handle, period);
+        if (equityRow) {
+          hibobEquityRows.push(equityRow);
+        }
+        hibobBaseRows.push(hibobBaseRow(handle, period));
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         rows.push(periodErrorRow(handle, message));
+        errors.push(`${handle}: ${message}`);
       }
     }
 
-    if (opts.csv) {
-      console.log(executeHeaders.map(csvEscape).join(","));
-      for (const row of rows) {
-        console.log(row.map(csvEscape).join(","));
-      }
-    } else {
-      console.log(`\n=== Period Execution: ${targetPeriod} (${handles.length} engineers) ===\n`);
-      printTable(executeHeaders, [...rows, periodTotalRow(totals)], {
-        separatorBefore: (row) => row[0] === "TOTAL",
-      });
-      console.log();
+    switch (outputMode) {
+      case "csv":
+        printCsv(executeHeaders, rows);
+        return;
+      case "csv-hibob-cash":
+        if (errors.length > 0) {
+          console.error(errors.map((e) => `Error: ${e}`).join("\n"));
+          process.exit(1);
+        }
+        printCsv(hibobCashHeaders, hibobCashRows);
+        return;
+      case "csv-hibob-equity":
+        if (errors.length > 0) {
+          console.error(errors.map((e) => `Error: ${e}`).join("\n"));
+          process.exit(1);
+        }
+        printCsv(hibobEquityHeaders, hibobEquityRows);
+        return;
+      case "csv-hibob-base":
+        if (errors.length > 0) {
+          console.error(errors.map((e) => `Error: ${e}`).join("\n"));
+          process.exit(1);
+        }
+        printCsv(hibobBaseHeaders, hibobBaseRows);
+        return;
+      case "table":
+        console.log(`\n=== Period Execution: ${targetPeriod} (${handles.length} engineers) ===\n`);
+        printTable(executeHeaders, [...rows, periodTotalRow(totals)], {
+          separatorBefore: (row) => row[0] === "TOTAL",
+        });
+        console.log();
+        return;
     }
   });
 
