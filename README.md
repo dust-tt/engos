@@ -12,6 +12,9 @@ npx tsx src/cli.ts period {handle} -p 2026-11-01
 # Period compensation for all engineers
 npx tsx src/cli.ts execute -p 2026-11-01
 npx tsx src/cli.ts execute -p 2026-11-01 --csv
+npx tsx src/cli.ts execute -p 2026-11-01 --csv-hibob-cash
+npx tsx src/cli.ts execute -p 2026-11-01 --csv-hibob-equity
+npx tsx src/cli.ts execute -p 2026-11-01 --csv-hibob-base
 
 # Equity projection through 2030
 npx tsx src/cli.ts jazz {handle} {ratio}
@@ -35,6 +38,11 @@ Stored in company.json:
     start_date: Date,
     strike_price_cents: number,
     preferred_price_cents: number,
+  }[],
+  // Used by the execute command when rendering US compensation.
+  exchange_rates: {
+    period_start_date: Date,
+    eur_usd: number,
   }[]
 }
 ```
@@ -45,6 +53,8 @@ Stored per engineer under engineers/{handle}.json:
 
 ```
 {
+  email: string,
+  country: "FR" | "US",
   start_date: Date,
   // Date at which employment ended. Null for active employees.
   end_date: Date | null,

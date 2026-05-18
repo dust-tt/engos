@@ -25,6 +25,26 @@ function formatCents(cents: number): string {
   });
 }
 
+type RenderCurrency = "EUR" | "USD";
+
+interface MoneyRenderContext {
+  currency: RenderCurrency;
+  exchangeRate: number;
+}
+
+function formatCurrencyCents(
+  cents: number,
+  currency: RenderCurrency
+): string {
+  const units = Math.ceil(cents / 100);
+  return units.toLocaleString(currency === "EUR" ? "fr-FR" : "en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
 function formatPrice(cents: number): string {
   const euros = cents / 100;
   return euros.toLocaleString("fr-FR", {
@@ -41,6 +61,45 @@ function formatOptions(count: number): string {
 
 function formatPlainNumber(value: number): string {
   return String(Math.ceil(value));
+}
+
+function formatPlainCurrencyUnits(cents: number): string {
+  return String(Math.ceil(cents / 100));
+}
+
+function formatHibobDate(date: string): string {
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function getMoneyRenderContext(
+  company: CompanyData,
+  engineer: EngineerData,
+  periodStart: string
+): MoneyRenderContext {
+  switch (engineer.country) {
+    case "FR":
+      return { currency: "EUR", exchangeRate: 1 };
+    case "US": {
+      const rate = company.exchange_rates?.find(
+        (entry) => entry.period_start_date === periodStart
+      );
+      if (!rate) {
+        throw new Error(`Missing exchange rate for period ${periodStart}`);
+      }
+      if (!Number.isFinite(rate.eur_usd) || rate.eur_usd <= 0) {
+        throw new Error(`Invalid exchange rate for period ${periodStart}`);
+      }
+      return { currency: "USD", exchangeRate: rate.eur_usd };
+    }
+  }
+  throw new Error(
+    `Unsupported country ${String(engineer.country)} for ${engineer.email}`
+  );
+}
+
+function renderCents(cents: number, context: MoneyRenderContext): number {
+  return cents * context.exchangeRate;
 }
 
 function csvEscape(value: string): string {
@@ -251,15 +310,92 @@ const executeHeaders = [
   "period_bonus",
   "period_grant_options",
   "period_grant_value",
+  "currency",
   "error",
 ];
+
+const hibobCashHeaders = [
+  "Company email",
+  "Effective date",
+  "Variable type",
+  "Amount",
+  "Currency",
+  "Pay period",
+  "Pay frequency",
+  "Payout type",
+];
+
+const hibobEquityHeaders = [
+  "Company email",
+  "Grant number",
+  "Equity type",
+  "Grant type",
+  "Initial quantity",
+  "Vesting effective date",
+  "Vesting schedule",
+  "Grant status",
+  "Exercise price",
+  "Exercise price currency",
+  "Grant amount",
+  "Grant amount currency",
+];
+
+const hibobBaseHeaders = [
+  "Company email",
+  "Effective date",
+  "Base Salary Amount",
+  "Currency",
+  "Salary Pay period",
+  "Salary Pay frequency",
+];
+
+type ExecuteOutputMode =
+  | "table"
+  | "csv"
+  | "csv-hibob-cash"
+  | "csv-hibob-equity"
+  | "csv-hibob-base";
+
+interface ExecuteTotals {
+  label: string;
+  currency: RenderCurrency;
+  newBaseCents: number;
+  bonusEquityRatioSum: number;
+  bonusEquityRatioCount: number;
+  overflowEquityRatioSum: number;
+  overflowEquityRatioCount: number;
+  bonusCents: number;
+  grantOptions: number;
+  grantValueCents: number;
+}
+
+function createExecuteTotals(currency: RenderCurrency): ExecuteTotals {
+  return {
+    label: `TOTAL ${currency}`,
+    currency,
+    newBaseCents: 0,
+    bonusEquityRatioSum: 0,
+    bonusEquityRatioCount: 0,
+    overflowEquityRatioSum: 0,
+    overflowEquityRatioCount: 0,
+    bonusCents: 0,
+    grantOptions: 0,
+    grantValueCents: 0,
+  };
+}
 
 function periodReportRow(
   handle: string,
   period: PeriodOutput,
-  csv: boolean
+  csv: boolean,
+  moneyContext: MoneyRenderContext
 ): string[] {
-  const cents = csv ? formatPlainNumber : formatCents;
+  const cents = (value: number) => {
+    const rendered = renderCents(value, moneyContext);
+    return csv
+      ? formatPlainNumber(rendered)
+      : formatCurrencyCents(rendered, moneyContext.currency);
+  };
   const options = csv ? formatPlainNumber : formatOptions;
   const empty = csv ? "0" : "-";
 
@@ -273,7 +409,72 @@ function periodReportRow(
     period.new_bonus ? cents(period.new_bonus.value_cents) : empty,
     period.new_grant ? options(period.new_grant.options_count) : empty,
     period.new_grant ? cents(period.new_grant.value_cents) : empty,
+    moneyContext.currency,
     "",
+  ];
+}
+
+function hibobCashRow(
+  engineer: EngineerData,
+  period: PeriodOutput,
+  moneyContext: MoneyRenderContext
+): string[] | null {
+  if (!period.new_bonus) {
+    return null;
+  }
+
+  return [
+    engineer.email,
+    formatHibobDate(period.start_date),
+    "EngOS cash variable",
+    formatPlainCurrencyUnits(
+      renderCents(period.new_bonus.value_cents, moneyContext)
+    ),
+    moneyContext.currency,
+    "Half-Yearly",
+    "One time",
+    "Amount",
+  ];
+}
+
+function hibobEquityRow(
+  engineer: EngineerData,
+  period: PeriodOutput
+): string[] | null {
+  if (!period.new_grant) {
+    return null;
+  }
+
+  return [
+    engineer.email,
+    "0",
+    engineer.country === "US" ? "ISO" : "BSPCE",
+    "EngOS Grant",
+    formatPlainNumber(period.new_grant.options_count),
+    "",
+    "EngOS",
+    "Pending approval",
+    "",
+    "",
+    "",
+    "",
+  ];
+}
+
+function hibobBaseRow(
+  engineer: EngineerData,
+  period: PeriodOutput,
+  moneyContext: MoneyRenderContext
+): string[] {
+  return [
+    engineer.email,
+    formatHibobDate(period.start_date),
+    formatPlainCurrencyUnits(
+      renderCents(period.new_base.value_cents, moneyContext)
+    ),
+    moneyContext.currency,
+    "Annual",
+    engineer.country === "US" ? "Every two weeks" : "Monthly",
   ];
 }
 
@@ -285,29 +486,48 @@ function periodErrorRow(handle: string, error: string): string[] {
   ];
 }
 
-function periodTotalRow(totals: {
-  newBaseCents: number;
-  bonusEquityRatioSum: number;
-  bonusEquityRatioCount: number;
-  overflowEquityRatioSum: number;
-  overflowEquityRatioCount: number;
-  bonusCents: number;
-  grantOptions: number;
-  grantValueCents: number;
-}): string[] {
+function periodTotalRow(totals: ExecuteTotals): string[] {
   const avg = (sum: number, count: number) =>
     count > 0 ? String(Math.round((sum / count) * 100) / 100) : "";
 
   return [
-    "TOTAL",
-    formatCents(totals.newBaseCents),
+    totals.label,
+    formatCurrencyCents(totals.newBaseCents, totals.currency),
     avg(totals.bonusEquityRatioSum, totals.bonusEquityRatioCount),
     avg(totals.overflowEquityRatioSum, totals.overflowEquityRatioCount),
-    formatCents(totals.bonusCents),
+    formatCurrencyCents(totals.bonusCents, totals.currency),
     formatOptions(totals.grantOptions),
-    formatCents(totals.grantValueCents),
+    formatCurrencyCents(totals.grantValueCents, totals.currency),
+    totals.currency,
     "",
   ];
+}
+
+function printCsv(headers: string[], rows: string[][]): void {
+  console.log(headers.map(csvEscape).join(","));
+  for (const row of rows) {
+    console.log(row.map(csvEscape).join(","));
+  }
+}
+
+function getExecuteOutputMode(opts: {
+  csv?: boolean;
+  csvHibobCash?: boolean;
+  csvHibobEquity?: boolean;
+  csvHibobBase?: boolean;
+}): ExecuteOutputMode {
+  const selected: ExecuteOutputMode[] = [];
+  if (opts.csv) selected.push("csv");
+  if (opts.csvHibobCash) selected.push("csv-hibob-cash");
+  if (opts.csvHibobEquity) selected.push("csv-hibob-equity");
+  if (opts.csvHibobBase) selected.push("csv-hibob-base");
+
+  if (selected.length > 1) {
+    console.error("Error: choose only one CSV output option");
+    process.exit(1);
+  }
+
+  return selected[0] ?? "table";
 }
 
 program
@@ -318,21 +538,27 @@ program
     "Target period start (YYYY-MM-DD), defaults to next 5/1 or 11/1"
   )
   .option("--csv", "Print CSV instead of a table")
-  .action((opts: { period?: string; csv?: boolean }) => {
+  .option("--csv-hibob-cash", "Print HiBob cash variable CSV")
+  .option("--csv-hibob-equity", "Print HiBob equity grant CSV")
+  .option("--csv-hibob-base", "Print HiBob base salary CSV")
+  .action((opts: {
+    period?: string;
+    csv?: boolean;
+    csvHibobCash?: boolean;
+    csvHibobEquity?: boolean;
+    csvHibobBase?: boolean;
+  }) => {
     const targetPeriod = opts.period || getNextPeriodStart();
+    const outputMode = getExecuteOutputMode(opts);
     const company = loadCompany();
     const handles = listEngineerHandles();
     const rows: string[][] = [];
-    const totals = {
-      newBaseCents: 0,
-      bonusEquityRatioSum: 0,
-      bonusEquityRatioCount: 0,
-      overflowEquityRatioSum: 0,
-      overflowEquityRatioCount: 0,
-      bonusCents: 0,
-      grantOptions: 0,
-      grantValueCents: 0,
-    };
+    const hibobCashRows: string[][] = [];
+    const hibobEquityRows: string[][] = [];
+    const hibobBaseRows: string[][] = [];
+    const errors: string[] = [];
+    const fatalErrors: string[] = [];
+    const totalsByCurrency = new Map<RenderCurrency, ExecuteTotals>();
 
     for (const handle of handles) {
       try {
@@ -344,9 +570,24 @@ program
         const period = result.periods.find((p) => p.start_date === targetPeriod);
         if (!period) {
           rows.push(periodErrorRow(handle, "No period output for target"));
+          errors.push(`${handle}: No period output for target`);
           continue;
         }
-        totals.newBaseCents += period.new_base.value_cents;
+        const moneyContext = getMoneyRenderContext(
+          company,
+          engineer,
+          targetPeriod
+        );
+        let totals = totalsByCurrency.get(moneyContext.currency);
+        if (!totals) {
+          totals = createExecuteTotals(moneyContext.currency);
+          totalsByCurrency.set(moneyContext.currency, totals);
+        }
+
+        totals.newBaseCents += renderCents(
+          period.new_base.value_cents,
+          moneyContext
+        );
         if (period.bonus_equity_ratio !== null) {
           totals.bonusEquityRatioSum += period.bonus_equity_ratio;
           totals.bonusEquityRatioCount += 1;
@@ -355,27 +596,79 @@ program
           totals.overflowEquityRatioSum += period.overflow_equity_ratio;
           totals.overflowEquityRatioCount += 1;
         }
-        totals.bonusCents += period.new_bonus?.value_cents ?? 0;
+        totals.bonusCents += renderCents(
+          period.new_bonus?.value_cents ?? 0,
+          moneyContext
+        );
         totals.grantOptions += period.new_grant?.options_count ?? 0;
-        totals.grantValueCents += period.new_grant?.value_cents ?? 0;
-        rows.push(periodReportRow(handle, period, Boolean(opts.csv)));
+        totals.grantValueCents += renderCents(
+          period.new_grant?.value_cents ?? 0,
+          moneyContext
+        );
+        rows.push(
+          periodReportRow(handle, period, outputMode === "csv", moneyContext)
+        );
+
+        const cashRow = hibobCashRow(engineer, period, moneyContext);
+        if (cashRow) {
+          hibobCashRows.push(cashRow);
+        }
+        const equityRow = hibobEquityRow(engineer, period);
+        if (equityRow) {
+          hibobEquityRows.push(equityRow);
+        }
+        hibobBaseRows.push(hibobBaseRow(engineer, period, moneyContext));
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         rows.push(periodErrorRow(handle, message));
+        errors.push(`${handle}: ${message}`);
+        if (message.includes("exchange rate")) {
+          fatalErrors.push(`${handle}: ${message}`);
+        }
       }
     }
 
-    if (opts.csv) {
-      console.log(executeHeaders.map(csvEscape).join(","));
-      for (const row of rows) {
-        console.log(row.map(csvEscape).join(","));
-      }
-    } else {
-      console.log(`\n=== Period Execution: ${targetPeriod} (${handles.length} engineers) ===\n`);
-      printTable(executeHeaders, [...rows, periodTotalRow(totals)], {
-        separatorBefore: (row) => row[0] === "TOTAL",
-      });
-      console.log();
+    if (fatalErrors.length > 0) {
+      console.error(fatalErrors.map((e) => `Error: ${e}`).join("\n"));
+      process.exit(1);
+    }
+
+    switch (outputMode) {
+      case "csv":
+        printCsv(executeHeaders, rows);
+        return;
+      case "csv-hibob-cash":
+        if (errors.length > 0) {
+          console.error(errors.map((e) => `Error: ${e}`).join("\n"));
+          process.exit(1);
+        }
+        printCsv(hibobCashHeaders, hibobCashRows);
+        return;
+      case "csv-hibob-equity":
+        if (errors.length > 0) {
+          console.error(errors.map((e) => `Error: ${e}`).join("\n"));
+          process.exit(1);
+        }
+        printCsv(hibobEquityHeaders, hibobEquityRows);
+        return;
+      case "csv-hibob-base":
+        if (errors.length > 0) {
+          console.error(errors.map((e) => `Error: ${e}`).join("\n"));
+          process.exit(1);
+        }
+        printCsv(hibobBaseHeaders, hibobBaseRows);
+        return;
+      case "table":
+        console.log(`\n=== Period Execution: ${targetPeriod} (${handles.length} engineers) ===\n`);
+        printTable(
+          executeHeaders,
+          [...rows, ...[...totalsByCurrency.values()].map(periodTotalRow)],
+          {
+            separatorBefore: (row) => row[0].startsWith("TOTAL"),
+          }
+        );
+        console.log();
+        return;
     }
   });
 

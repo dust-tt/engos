@@ -4,8 +4,14 @@ export interface OptionsPriceEntry {
   preferred_price_cents: number;
 }
 
+export interface ExchangeRateEntry {
+  period_start_date: string;
+  eur_usd: number;
+}
+
 export interface CompanyData {
   options_price: OptionsPriceEntry[];
+  exchange_rates?: ExchangeRateEntry[];
 }
 
 export interface GrantRecord {
@@ -33,6 +39,8 @@ export interface PeriodBonusSplit {
 }
 
 export interface EngineerData {
+  email: string;
+  country: "FR" | "US";
   start_date: string;
   end_date: string | null;
   engineer_date: string | null;
