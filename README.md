@@ -38,6 +38,11 @@ Stored in company.json:
     start_date: Date,
     strike_price_cents: number,
     preferred_price_cents: number,
+  }[],
+  // Used by the execute command when rendering US compensation.
+  exchange_rates: {
+    period_start_date: Date,
+    eur_usd: number,
   }[]
 }
 ```
@@ -48,6 +53,8 @@ Stored per engineer under engineers/{handle}.json:
 
 ```
 {
+  email: string,
+  country: "FR" | "US",
   start_date: Date,
   // Date at which employment ended. Null for active employees.
   end_date: Date | null,
