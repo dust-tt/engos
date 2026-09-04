@@ -10,9 +10,17 @@ import {
 
 /**
  * @cc [author:spolu,label:periods] engos-start-date
- * EngOS compensation periods must not begin before `2025-11-01`.
+ * `ENGOS_START_DATE` must be `2025-11-01`, the earliest period boundary used to backfill
+ * compensation acceleration.
  */
 const ENGOS_START_DATE = "2025-11-01";
+
+/**
+ * @cc [author:spolu,label:periods,label:4_year_grants] engos-effective-date
+ * `ENGOS_EFFECTIVE_DATE` must be `2026-05-01`, the date from which EngOS eligibility rules are
+ * enforced for newly starting engineers.
+ */
+const ENGOS_EFFECTIVE_DATE = "2026-05-01";
 
 /**
  * @cc [author:spolu,label:base_salary_and_raise] base-salary-cap
@@ -302,6 +310,15 @@ export function computeCompensation(
   engineer: EngineerData,
   targetPeriodStart: string
 ): EngineerOutput {
+  if (
+    engineer.start_date >= ENGOS_EFFECTIVE_DATE &&
+    engineer["4_year_grants"].length > 0
+  ) {
+    throw new Error(
+      `4_year_grants are only valid for engineers who started before ${ENGOS_EFFECTIVE_DATE}; engineer started ${engineer.start_date}`
+    );
+  }
+
   if (!isActiveAt(engineer, parseDate(targetPeriodStart))) {
     throw new Error(
       `Employee ended on ${engineer.end_date}; cannot compute period ${targetPeriodStart}`
