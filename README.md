@@ -127,9 +127,11 @@ Stored per engineer under engineers/{handle}.json:
 ### Compensation contracts
 
 The authoritative compensation methodology and projection invariants are `@cc` contracts attached
-to their owning declarations in [`src/compute.ts`](src/compute.ts). Inspect and validate them with:
+to their owning declarations under [`src`](src). Inspect and validate them with:
 
 ```bash
 cc-check list src/compute.ts
+cc-check list src/cli.ts
+cc-check list src/types.ts
 cc-check format
 ```

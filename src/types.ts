@@ -14,6 +14,11 @@ export interface CompanyData {
   exchange_rates?: ExchangeRateEntry[];
 }
 
+/**
+ * @cc [author:spolu,label:grant_records] issued-grant-record
+ * Each `GrantRecord` must historically record an issued `bonus` or `impact` grant, classify its
+ * vesting period as `4y` or `6m`, and allow an optional human-readable `reason`.
+ */
 export interface GrantRecord {
   start_date: string;
   options_count: number;

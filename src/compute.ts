@@ -9,20 +9,20 @@ import {
 } from "./types.js";
 
 /**
- * @cc [author:spolu,label:product] engos-start-date
+ * @cc [author:spolu,label:periods] engos-start-date
  * EngOS compensation periods must not begin before `2025-11-01`.
  */
 const ENGOS_START_DATE = "2025-11-01";
 
 /**
- * @cc [author:spolu,label:product] base-salary-cap
+ * @cc [author:spolu,label:base_salary_and_raise] base-salary-cap
  * Annual base cash must be capped at 13,500,000 EUR cents; uncapped excess remains eligible for
  * the base-overflow bonus.
  */
 const BASE_SALARY_CAP_CENTS = 135_000_00;
 
 /**
- * @cc [author:spolu,label:product] minimum-standard-equity-ratio
+ * @cc [author:spolu,label:equity_split,label:jazz_parameters] minimum-standard-equity-ratio
  * A standard bonus equity ratio must be finite and within the inclusive range `[0.5, 1]`.
  */
 export const RATIO_MINIMUM = 0.5;
@@ -57,7 +57,7 @@ function formatDateStr(d: Date): string {
 }
 
 /**
- * @cc [author:spolu,label:product] compensation-period-calendar
+ * @cc [author:spolu,label:periods] compensation-period-calendar
  * The returned periods must be the May 1 and November 1 boundaries within the inclusive
  * `startDate` to `endDate` range, in chronological order.
  */
@@ -80,12 +80,12 @@ export function generatePeriods(startDate: string, endDate: string): string[] {
 }
 
 /**
- * @cc [author:spolu,label:product] preferred-price-selection
+ * @cc [author:spolu,label:equity_split,label:jazz_simulation] preferred-price-selection
  * The preferred price at a date must come from the latest `options_price` entry whose
  * `start_date` is at or before that date, regardless of input order.
  */
 /**
- * @cc [author:spolu,label:product] preferred-price-required
+ * @cc [author:spolu,label:equity_split,label:jazz_simulation] preferred-price-required
  * The lookup must fail when no `options_price` entry exists at or before the requested date.
  */
 export function getPreferredPriceAtDate(
@@ -112,7 +112,7 @@ export function getPreferredPriceAtDate(
 }
 
 /**
- * @cc [author:spolu,label:product] status-raise-per-period
+ * @cc [author:spolu,label:base_salary_and_raise] status-raise-per-period
  * The annual base raise for one six-month period must be 750,000 EUR cents when
  * `tenure_date <= periodStart`, otherwise 500,000 when `engineer_date <= periodStart`, and zero
  * otherwise.
@@ -184,69 +184,118 @@ function isActiveAt(engineer: EngineerData, date: Date): boolean {
 }
 
 /**
- * @cc [author:spolu,label:product] compensation-monetary-unit
+ * @cc [author:spolu,label:output_values] compensation-monetary-unit
  * Every monetary input and output consumed or produced by this calculation is denominated in EUR
  * cents.
  */
 /**
- * @cc [author:spolu,label:product] compensation-period-range
+ * @cc [author:spolu,label:periods] compensation-period-range
  * The calculation must recompute every compensation period from the later of
  * `ENGOS_START_DATE` and `engineer.start_date` through `targetPeriodStart`, inclusively.
  */
 /**
- * @cc [author:spolu,label:product] ended-engineer-period
+ * @cc [author:spolu,label:periods] ended-engineer-period
  * The calculation must reject a `targetPeriodStart` at or after a non-null `engineer.end_date`.
  */
 /**
- * @cc [author:spolu,label:product] base-salary-baseline
+ * @cc [author:spolu,label:base_salary_and_raise] base-salary-baseline
  * Each period must use the latest applicable `base_salaries` entry as its baseline, restart raise
  * accumulation when that entry changes, apply no raise when it starts on the period boundary, and
  * apply the current period's raise when it starts earlier.
  */
 /**
- * @cc [author:spolu,label:product] regular-period-bonus
- * Once `engineer_date` is reached, the regular six-month standard bonus must be one quarter of
- * uncapped annual base; each period must also include half of annual base excess over the cap,
- * including before `engineer_date`.
+ * @cc [author:spolu,label:bonus_computation] regular-period-bonus
+ * When `engineer_date <= periodStart`, `regularBonusCore` must be
+ * `uncappedYearlyBase / 2 / 2`, otherwise zero; `regularBonusOverflow` must always be
+ * `Math.max(0, uncappedYearlyBase - BASE_SALARY_CAP_CENTS) / 2`, including before
+ * `engineer_date`.
  */
 /**
- * @cc [author:spolu,label:product] bonus-split-selection
+ * @cc [author:spolu,label:bonus_computation] regular-bonus-output
+ * Before four-year-grant deduction and equity splitting, `monthly.bonus_total_cents` must be
+ * `Math.ceil(regularBonus / 6)` and `yearly.bonus_total_cents` must be
+ * `monthly.bonus_total_cents * 12`.
+ */
+/**
+ * @cc [author:spolu,label:bonus_computation,label:equity_split] bonus-split-selection
  * A bonus-bearing period must use the latest applicable `period_bonus_splits` entry and fail when
  * none exists; `bonus_equity_ratio` must be in `[RATIO_MINIMUM, 1]`, while
  * `overflow_equity_ratio` defaults to it and must be in `[0, 1]`.
  */
 /**
- * @cc [author:spolu,label:product] first-bonus-prorate
- * When `engineer_date` falls from the preceding boundary through the day before the first standard
- * bonus period, that period must add a one-time prorate based on days to the period start, the
- * pre-raise base standard-bonus portion, and any pre-raise base overflow.
+ * @cc [author:spolu,label:pro_rated_bonus] first-bonus-prorate
+ * When `engineer_date` is on or after the preceding boundary and before the first standard-bonus
+ * period, that period must add exactly one prorate with
+ * `proRateBonusCore = (baseBefore / 2) * (proRateDays / 365)` and
+ * `proRateBonusOverflow = Math.max(0, baseBefore - BASE_SALARY_CAP_CENTS) * (proRateDays / 365)`,
+ * where `proRateDays` is the calendar-day gap from `engineer_date` to the period start.
  */
 /**
- * @cc [author:spolu,label:product] four-year-grant-offset
- * An active `4_year_grants` entry must vest linearly over 48 months at the period's preferred
- * price; its six-month and prorated cash equivalents must reduce only the matching standard bonus
- * portions, never below zero, without reducing base-overflow bonus.
+ * @cc [author:spolu,label:4_year_grants] four-year-grant-valuation
+ * For each `4_year_grants` entry active from its `start_date` until, but excluding,
+ * `start_date + 48 months`, `monthlyOptions` must be `grant.options_count / 48` and its monthly
+ * cash equivalent must be `monthlyOptions * preferredPrice`; the sums for all active grants must
+ * populate `4_year_grant_equity_options_count` and `4_year_grant_equity_cash_cents` even when a
+ * grant fully consumes a standard bonus portion.
  */
 /**
- * @cc [author:spolu,label:product] historical-grants-no-op
+ * @cc [author:spolu,label:4_year_grants] four-year-grant-offset
+ * The aggregate active four-year-grant cash equivalent must produce
+ * `regularCoreRemaining = Math.max(0, regularBonusCore - fourYearMonthlyCash * 6)` and independently
+ * `fourYearProRateCash = fourYearMonthlyCash * 12 * proRateDays / 365` followed by
+ * `proRateCoreRemaining = Math.max(0, proRateBonusCore - fourYearProRateCash)`, while leaving
+ * `regularBonusOverflow` and `proRateBonusOverflow` unchanged.
+ */
+/**
+ * @cc [author:spolu,label:grant_records] historical-grants-no-op
  * `engineer.grants` is a historical record and must not affect compensation output.
  */
 /**
- * @cc [author:spolu,label:product] bonus-equity-split
- * Remaining standard bonus must be split with `bonus_equity_ratio`, base-overflow bonus with
- * `overflow_equity_ratio`, and each equity portion must be converted to options at the period's
- * preferred price.
+ * @cc [author:spolu,label:equity_split] bonus-equity-split
+ * The regular bonus must produce
+ * `regularCashPeriod = regularCoreRemaining * (1 - bonusEquityRatio) + regularBonusOverflow * (1 - overflowEquityRatio)`
+ * and
+ * `regularEquityPeriod = regularCoreRemaining * bonusEquityRatio + regularBonusOverflow * overflowEquityRatio`.
  */
 /**
- * @cc [author:spolu,label:product] steady-state-and-period-output
- * `monthly` and `yearly` must exclude prorate, with `yearly` equal to twelve times rounded monthly
- * values; `new_bonus` and `new_grant` must be null when no corresponding award is due and otherwise
- * report the actual regular plus prorated cash and equity awards for the six-month period.
+ * @cc [author:spolu,label:equity_split] prorated-bonus-equity-split
+ * The prorated bonus must produce
+ * `proRateCashPeriod = proRateCoreRemaining * (1 - bonusEquityRatio) + proRateBonusOverflow * (1 - overflowEquityRatio)`
+ * and
+ * `proRateEquityPeriod = proRateCoreRemaining * bonusEquityRatio + proRateBonusOverflow * overflowEquityRatio`.
  */
 /**
- * @cc [author:spolu,label:product] compensation-output-rounding
- * Every emitted monetary amount and option count must be rounded up, and each `total_cash_cents`
- * must equal base cash plus bonus cash, bonus equity value, and four-year-grant equity value.
+ * @cc [author:spolu,label:equity_split] period-equity-grant
+ * At a positive period-start `preferredPrice`, `regularEquityOptions` must be
+ * `regularEquityPeriod / preferredPrice` and `proRateEquityOptions` must be
+ * `proRateEquityPeriod / preferredPrice`; the resulting total `new_grant` must vest linearly from
+ * the period start over six months with no cliff.
+ */
+/**
+ * @cc [author:spolu,label:output_values] steady-state-output
+ * `monthly` and `yearly` must contain regular steady-state values only, excluding prorate, with
+ * every `yearly` value equal to twelve times its rounded monthly value.
+ */
+/**
+ * @cc [author:spolu,label:pro_rated_bonus,label:output_values] period-award-output
+ * `new_bonus` and `new_grant` must be null when no corresponding award is due and otherwise expose
+ * separately rounded `regular_*` and `prorate_*` components plus a separately rounded total of the
+ * underlying regular and prorated cash or equity award for the six-month period.
+ */
+/**
+ * @cc [author:spolu,label:output_values] new-base-output
+ * `new_base.value_cents` must be the exact rounded-up annual base salary after applying
+ * `BASE_SALARY_CAP_CENTS` for that period.
+ */
+/**
+ * @cc [author:spolu,label:output_values] compensation-output-rounding
+ * Every calculated monetary amount and option count emitted by the calculation must be rounded up,
+ * while configured ratio values must remain unchanged.
+ */
+/**
+ * @cc [author:spolu,label:output_values] total-cash-output
+ * Each `total_cash_cents` must equal `base_cash_cents + bonus_cash_cents` plus
+ * `bonus_equity_cash_cents + 4_year_grant_equity_cash_cents` in the same breakdown.
  */
 export function computeCompensation(
   company: CompanyData,
@@ -559,27 +608,36 @@ export interface ProjectionYear {
 }
 
 /**
- * @cc [author:spolu,label:product] projection-fundraises
+ * @cc [author:spolu,label:jazz_simulation] projection-fundraises
  * Starting from the latest known option price, the projection must add fundraises every
  * `fundraisePeriodMonths` before 2031, multiply preferred and strike prices by
  * `preferredMultiplier` at each event, and use the resulting contemporaneous preferred price for
- * bonus-to-option conversion.
+ * bonus-to-option conversion; for the same equity amount, a higher preferred price must produce
+ * fewer options.
  */
 /**
- * @cc [author:spolu,label:product] projection-ratio
+ * @cc [author:spolu,label:jazz_parameters] projection-ratio
  * The projection must reject a `bonusEquityRatio` outside `[RATIO_MINIMUM, 1]` and apply the valid
  * ratio to both standard and base-overflow bonuses in every simulated period.
  */
 /**
- * @cc [author:spolu,label:product] projection-vesting
- * Year-end vested options for 2026 through 2030 must include linear vesting from four-year grants
- * over 48 months and simulated period grants over six months, with the total rounded up and valued
- * at that year-end's projected preferred price.
+ * @cc [author:spolu,label:jazz_output_values] projection-year-range-and-price
+ * The projection must return exactly one entry for each year from 2026 through 2030 whose
+ * `preferred_price_cents` is the projected preferred price on December 31 of that year.
  */
 /**
- * @cc [author:spolu,label:product] projection-cash-output
- * Each projection year must report annual base and cash bonus from its last compensation period,
- * with `yearly_cash_total_cents` equal to their sum.
+ * @cc [author:spolu,label:jazz_output_values] projection-vesting
+ * Each year-end `options_vested` must be the rounded-up cumulative linear vesting from every
+ * four-year grant over 48 months from its start date and every simulated period grant over six
+ * months from its period start; `value_cents` must be
+ * `options_vested * preferred_price_cents` for that year.
+ */
+/**
+ * @cc [author:spolu,label:jazz_output_values] projection-cash-output
+ * Each projection year must take `yearly_base_cents`, `yearly_bonus_cash_cents`, and
+ * `yearly_cash_total_cents` from the final compensation period of that year, with
+ * `yearly_cash_total_cents` equal to `base_cash_cents + bonus_cash_cents` plus
+ * `bonus_equity_cash_cents + 4_year_grant_equity_cash_cents` from that period's `yearly` output.
  */
 export function projectEquity(
   company: CompanyData,
@@ -680,13 +738,14 @@ export function projectEquity(
     // Find the last period in this year for base/bonus values
     let yearlyBase = 0;
     let yearlyBonusCash = 0;
+    let yearlyCashTotal = 0;
     for (const period of result.periods) {
       if (period.start_date.startsWith(String(year))) {
         yearlyBase = period.yearly.base_cash_cents;
         yearlyBonusCash = period.yearly.bonus_cash_cents;
+        yearlyCashTotal = period.yearly.total_cash_cents;
       }
     }
-    const yearlyCashTotal = yearlyBase + yearlyBonusCash;
 
     projections.push({
       year,
@@ -713,12 +772,12 @@ export interface ModelMonth {
 }
 
 /**
- * @cc [author:spolu,label:product] model-window-and-payments
+ * @cc [author:spolu,label:periods] model-window-and-payments
  * The model must cover the next twelve full calendar months, report base salary in every month,
  * and report period cash bonuses and equity grants only on May 1 and November 1 boundaries.
  */
 /**
- * @cc [author:spolu,label:product] model-ended-engineer-exclusion
+ * @cc [author:spolu,label:periods] model-ended-engineer-exclusion
  * The model must exclude an engineer from every month at or after their non-null `end_date`.
  */
 export function computeModel(

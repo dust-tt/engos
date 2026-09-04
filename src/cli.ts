@@ -15,6 +15,20 @@ import {
   RATIO_MINIMUM,
 } from "./compute.js";
 
+/**
+ * @cc [author:spolu,label:jazz_parameters] jazz-default-multiplier
+ * The `jazz` command's `-m, --multiplier` parameter must control the preferred-price multiplier at
+ * each projected fundraise and default to `2`.
+ */
+const JAZZ_DEFAULT_MULTIPLIER = "2";
+
+/**
+ * @cc [author:spolu,label:jazz_parameters] jazz-default-fundraise-period
+ * The `jazz` command's `-f, --fundraise-period` parameter must control the number of months between
+ * projected fundraises and default to `18`.
+ */
+const JAZZ_DEFAULT_FUNDRAISE_PERIOD_MONTHS = "18";
+
 function formatCents(cents: number): string {
   const euros = Math.ceil(cents / 100);
   return euros.toLocaleString("fr-FR", {
@@ -186,6 +200,11 @@ function getNextPeriodStart(): string {
   return `${year + 1}-05-01`;
 }
 
+/**
+ * @cc [author:spolu,label:jazz_parameters] engineer-handle-resolution
+ * An engineer `handle` supplied to the CLI must resolve to `engineers/{handle}.json`, used together
+ * with the repository's `company.json`.
+ */
 function loadData(handle: string): {
   company: CompanyData;
   engineer: EngineerData;
@@ -680,12 +699,12 @@ program
   .option(
     "-m, --multiplier <number>",
     "Preferred price multiplier at each fundraise",
-    "2"
+    JAZZ_DEFAULT_MULTIPLIER
   )
   .option(
     "-f, --fundraise-period <months>",
     "Months between fundraise events",
-    "18"
+    JAZZ_DEFAULT_FUNDRAISE_PERIOD_MONTHS
   )
   .action(
     (
