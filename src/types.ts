@@ -14,6 +14,11 @@ export interface CompanyData {
   exchange_rates?: ExchangeRateEntry[];
 }
 
+/**
+ * @cc [author:spolu,label:grant_records] issued-grant-record
+ * Each `GrantRecord` must historically record an issued `bonus` or `impact` grant, classify its
+ * vesting period as `4y` or `6m`, and allow an optional human-readable `reason`.
+ */
 export interface GrantRecord {
   start_date: string;
   options_count: number;
@@ -42,9 +47,28 @@ export interface EngineerData {
   email: string;
   country: "FR" | "US";
   start_date: string;
+  /**
+   * @cc [author:spolu,label:periods] employment-end-date
+   * `end_date` is the first date on which the engineer is no longer employed; `null` means the
+   * engineer is active with no recorded employment end.
+   */
   end_date: string | null;
+  /**
+   * @cc [author:spolu,label:base_salary_and_raise,label:bonus_computation,label:pro_rated_bonus] trial-completion-date
+   * `engineer_date` is the date on which the engineer's trial period ends; `null` means the trial
+   * period has not ended.
+   */
   engineer_date: string | null;
+  /**
+   * @cc [author:spolu,label:base_salary_and_raise] tenure-date
+   * `tenure_date` is the date on which the engineer becomes tenured; `null` means the engineer has
+   * not become tenured.
+   */
   tenure_date: string | null;
+  /**
+   * @cc [author:spolu,label:4_year_grants] pre-engos-four-year-grants
+   * `4_year_grants` must be empty unless `start_date < ENGOS_EFFECTIVE_DATE`.
+   */
   "4_year_grants": FourYearGrant[];
   grants: GrantRecord[];
   base_salaries: BaseSalaryEntry[];
