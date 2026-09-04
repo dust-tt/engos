@@ -645,9 +645,16 @@ export interface ProjectionYear {
 /**
  * @cc [author:spolu,label:jazz_output_values] projection-vesting
  * Each year-end `options_vested` must be the rounded-up cumulative linear vesting from every
- * four-year grant over 48 months from its start date and every simulated period grant over six
- * months from its period start; `value_cents` must be
+ * `4_year_grants` entry over 48 months from its start date, every historical `grants` entry over
+ * its recorded vesting period, and every simulated period grant over six months from its period
+ * start; `value_cents` must be
  * `options_vested * preferred_price_cents` for that year.
+ */
+/**
+ * @cc [author:spolu,label:grant_records,label:jazz_output_values] projection-recorded-grant-vesting
+ * Each historical `engineer.grants` record must contribute
+ * `options_count / vesting_months * min(full_months_since_start, vesting_months)` to Jazz
+ * `options_vested`, where `vesting_months` is 48 for `period: "4y"` and 6 for `period: "6m"`.
  */
 /**
  * @cc [author:spolu,label:jazz_output_values] projection-cash-output
@@ -736,7 +743,17 @@ export function projectEquity(
       totalOptions += (grant.options_count / 48) * vestedMonths;
     }
 
-    // New grants from periods (vest over 6 months). Recorded grants are no-op.
+    // Historical grant records vest according to their recorded period.
+    for (const grant of engineer.grants) {
+      const vestingMonths = grant.period === "4y" ? 48 : 6;
+      const grantStart = parseDate(grant.start_date);
+      const months = fullMonthsBetween(grantStart, yearEnd);
+      const vestedMonths = Math.min(months, vestingMonths);
+      totalOptions +=
+        (grant.options_count / vestingMonths) * vestedMonths;
+    }
+
+    // New grants from simulated periods vest over 6 months.
     for (const period of result.periods) {
       if (period.new_grant && period.new_grant.options_count > 0) {
         const grantStart = parseDate(period.start_date);
