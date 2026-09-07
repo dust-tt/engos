@@ -19,12 +19,21 @@
       "start_date": "2026-03-20",
       "strike_price_cents": 5,
       "preferred_price_cents": 62
+    },
+    {
+      "start_date": "2026-07-15",
+      "strike_price_cents": 12,
+      "preferred_price_cents": 62
     }
   ],
   "exchange_rates": [
     {
       "period_start_date": "2026-05-01",
       "eur_usd": 1.17
+    },
+    {
+      "period_start_date": "2026-11-01",
+      "eur_usd": 1.16
     }
   ]
 }
