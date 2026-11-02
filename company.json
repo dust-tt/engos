@@ -24,6 +24,11 @@
       "start_date": "2026-07-15",
       "strike_price_cents": 12,
       "preferred_price_cents": 62
+    },
+    {
+      "start_date": "2026-10-16",
+      "strike_price_cents": 12,
+      "preferred_price_cents": 152
     }
   ],
   "exchange_rates": [
